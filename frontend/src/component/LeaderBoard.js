@@ -13,11 +13,11 @@ const LeaderBoard = ({ className, data }) => {
               <p>
                 {index + 1}
                 <sup>
-                  {index === 1
+                  {index === 0
                     ? "st"
-                    : index === 2
+                    : index === 1
                     ? "nd"
-                    : index === 3
+                    : index === 2
                     ? "rd"
                     : "th"}
                 </sup>

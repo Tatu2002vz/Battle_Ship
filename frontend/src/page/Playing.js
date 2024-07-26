@@ -283,7 +283,7 @@ const Playing = ({ socket }) => {
     <div className="bgPlaying">
       <div className="flex justify-around py-4">
         <div
-          className={`hover:text-red-500 hover:underline cursor-pointer max-w-[300px] min-w-[250px]`}
+          className={`hover:text-red-500 text-white hover:underline cursor-pointer max-w-[300px] min-w-[250px]`}
           onClick={() => {
             handleSurrender();
           }}

@@ -7,8 +7,13 @@ const createRoom = async (data) => {
   const Room = await roomRepository();
   const Player = await playerRepository();
   try {
-    const { token, nameRoom, capacity, ratio } = data;
-    if (Number(nameRoom) > 5) nameRoom = 5;
+    let { token, nameRoom, capacity, ratio } = data;
+    if (!ratio) ratio = 16;
+    if (!capacity) capacity = 5;
+    if (isNaN(Number(ratio))) ratio = 16;
+    if (isNaN(Number(capacity))) capacity = 5;
+    if (Number(capacity) > 5 || Number(capacity) < 2) capacity = 5;
+    if (Number(ratio) < 5) ratio = 16;
     if (nameRoom) {
       const exist = await Room.search()
         .where("name")
@@ -21,10 +26,10 @@ const createRoom = async (data) => {
     let newRoom = {
       name: nameRoom ? nameRoom : "New Room",
       numberOfRoom: 1,
-      capacity: capacity ? Number(capacity) : 5,
+      capacity: Number(capacity),
       isStart: false,
       isEnd: false,
-      ratio: ratio ? Number(ratio) : 16,
+      ratio: Number(ratio),
       createdAt: Date.now(),
       turn: 0,
     };
@@ -88,7 +93,7 @@ const getAllRooms = async (req, res) => {
     //   // room.numberPerson = countPerson.length
     //   // await Room.save(room)
     // });
-    const newListRoom = []
+    const newListRoom = [];
     for (const room of listRoom) {
       const countPerson = await Player.search()
         .where("roomId")
@@ -101,7 +106,7 @@ const getAllRooms = async (req, res) => {
       if (countPerson.length === 0) {
         await Room.remove(room.entityId);
       } else {
-        newListRoom.push(room)
+        newListRoom.push(room);
       }
       await Room.save(room);
     }

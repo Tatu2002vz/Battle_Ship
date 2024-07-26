@@ -58,7 +58,6 @@ function randomizeShips(boardSize, numberOfShips) {
   // Tạo các tàu ngẫu nhiên
   while (ships.length < numberOfShips) {
     let ship = generateShip(3, 1);
-
     if (!isOverlap(ship)) {
       ships.push(ship);
     }
@@ -66,7 +65,6 @@ function randomizeShips(boardSize, numberOfShips) {
 
   return ships;
 }
-
 // Sử dụng hàm randomizeShips để lấy danh sách tọa độ của 5 tàu
 // let ships = randomizeShips(32, 5);
 

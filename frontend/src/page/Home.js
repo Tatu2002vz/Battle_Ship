@@ -5,12 +5,21 @@ import RoomComponent from "../component/RoomComponent";
 import { useNavigate } from "react-router-dom";
 import { apiGetRooms } from "../api/Room";
 import Swal from "sweetalert2";
+import { useForm,  } from "react-hook-form";
+import validateOptions from "../helper/validate";
+// import FormCreate from "./FormCreate";
 const Home = ({ socket }) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm();
+
   const [name, setName] = useState("");
   const [isCreateRoom, setIsCreateRoom] = useState(false);
-  const [nameRoom, setNameRoom] = useState("");
-  const [capacity, setCapacity] = useState(5);
-  const [ratio, setRatio] = useState(16);
+  // const [nameRoom, setNameRoom] = useState("");
+  // const [capacity, setCapacity] = useState(5);
+  // const [ratio, setRatio] = useState(16);
   const [listRoom, setListRoom] = useState([]);
   const navigate = useNavigate();
   // const { socket } = useContext(SocketContext);
@@ -121,52 +130,143 @@ const Home = ({ socket }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const handleCreateRoom = () => {
-    if (!isNaN(Number(capacity))) {
-      if (Number(capacity) < 2) {
-        Swal.fire({
-          title: "Số người phải lớn hơn 1!",
-          icon: "error",
-        });
-      } else if (Number(capacity) > 5) {
-        Swal.fire({
-          title: "Số người tối đa là 5!",
-          icon: "error",
-        });
+  const onSubmit = (data) => {
+    data.token = localStorage.getItem("token");
+    socket.emit("createRoom", data);
+    console.log(data);
+    socket.on("createRoom", (data) => {
+      console.log(data);
+      if (data.success) {
+        navigate("/room/" + data.mes.entityId);
       } else {
-        const data = {
-          nameRoom,
-          capacity: capacity,
-          ratio: ratio,
-          token: localStorage.getItem("token"),
-        };
-        console.log(data);
-        socket.emit("createRoom", data);
-        socket.on("createRoom", (data) => {
-          console.log(data);
-          if (data.success) {
-            navigate("/room/" + data.mes.entityId);
-          } else {
-            Swal.fire({
-              position: "top-end",
-              icon: "error",
-              title: "Có lỗi xảy ra!",
-              showConfirmButton: false,
-              timer: 1500,
-            });
-          }
+        Swal.fire({
+          position: "top-end",
+          icon: "error",
+          title: "Có lỗi xảy ra!",
+          showConfirmButton: false,
+          timer: 1500,
         });
       }
-    } else {
-      Swal.fire({ title: "Phải nhập số!", icon: "error" });
-    }
+    });
   };
+
+  // const handleCreateRoom = () => {
+  //   if (!isNaN(Number(capacity)) && !isNaN(Number(ratio))) {
+  //     if (Number(capacity) < 2) {
+  //       Swal.fire({
+  //         title: "Số người phải lớn hơn 1!",
+  //         icon: "error",
+  //       });
+  //     } else if (Number(capacity) > 5) {
+  //       Swal.fire({
+  //         title: "Số người tối đa là 5!",
+  //         icon: "error",
+  //       });
+  //     } else {
+  //       const data = {
+  //         nameRoom,
+  //         capacity: capacity,
+  //         ratio: ratio,
+  //         token: localStorage.getItem("token"),
+  //       };
+  //       console.log(data);
+  //       socket.emit("createRoom", data);
+  //       socket.on("createRoom", (data) => {
+  //         console.log(data);
+  //         if (data.success) {
+  //           navigate("/room/" + data.mes.entityId);
+  //         } else {
+  //           Swal.fire({
+  //             position: "top-end",
+  //             icon: "error",
+  //             title: "Có lỗi xảy ra!",
+  //             showConfirmButton: false,
+  //             timer: 1500,
+  //           });
+  //         }
+  //       });
+  //     }
+  //   } else {
+  //     Swal.fire({ title: "Phải nhập số!", icon: "error" });
+  //   }
+  // };
   const handleChangeName = () => {
     socket.emit("changeName", name);
   };
   return (
     <div className="relative">
       {isCreateRoom && (
+        // <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md ">
+        //   <IoClose
+        //     className="absolute right-0 top-0 cursor-pointer"
+        //     size={30}
+        //     title="Thoát"
+        //     onClick={() => setIsCreateRoom(false)}
+        //   />
+        //   <h1 className="text-2xl font-bold flex justify-center mb-3">
+        //     Tạo phòng mới
+        //   </h1>
+        //   <div className="mt-3">
+        //     <label htmlFor="">Tên phòng</label>
+        //     <input
+        //       type="text"
+        //       onChange={(e) => setNameRoom(e.target.value)}
+        //       className="min-w-96 outline-none rounded-md h-10 px-3 block"
+        //       value={nameRoom}
+        //       placeholder="Tên phòng"
+        //     />
+        //   </div>
+        //   <div className="mt-3">
+        //     <label htmlFor="">Số người chơi</label>
+        //     <input
+        //       type="text"
+        //       onChange={(e) => {
+        //         setCapacity(e.target.value);
+        //       }}
+        //       className="min-w-96 outline-none rounded-md h-10 px-3 block"
+        //       value={capacity}
+        //       placeholder="Số lượng người trên phòng (>=2)"
+        //     />
+        //   </div>
+        //   <div className="mt-3">
+        //     <label htmlFor="">Kích cỡ bảng</label>
+        //     <input
+        //       type="text"
+        //       onChange={(e) => {
+        //         setRatio(e.target.value);
+        //       }}
+        //       className="min-w-96 outline-none rounded-md h-10 px-3 block"
+        //       value={ratio}
+        //       placeholder="Kích thước bảng (Ex: 5x5)"
+        //     />
+        //   </div>
+        //   {/* <div className="mt-3 flex justify-between">
+        //     <label htmlFor="">Kích cỡ bảng</label>
+        //     <select
+        //       name=""
+        //       id=""
+        //       value={ratio}
+        //       onChange={(e) => {
+        //         setRatio(e.target.value);
+        //       }}
+        //       className="px-4 "
+        //     >
+        //       {
+
+        //       }
+        //       <option value="16">16</option>
+        //       <option value="32">32</option>
+        //     </select>
+        //   </div> */}
+        //   <button
+        //     className="bg-main-color text-white px-4 py-2 rounded-md block mx-auto my-4"
+        //     onClick={() => {
+        //       handleCreateRoom();
+        //     }}
+        //   >
+        //     Tạo phòng mới +{" "}
+        //   </button>
+        // </div>
         <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md ">
           <IoClose
             className="absolute right-0 top-0 cursor-pointer"
@@ -174,56 +274,62 @@ const Home = ({ socket }) => {
             title="Thoát"
             onClick={() => setIsCreateRoom(false)}
           />
-          <h1 className="text-2xl font-bold flex justify-center mb-3">
-            Tạo phòng mới
-          </h1>
-          <div className="mt-3">
-            <label htmlFor="">Tên phòng</label>
-            <input
-              type="text"
-              onChange={(e) => setNameRoom(e.target.value)}
-              className="min-w-96 outline-none rounded-md h-10 px-3 block"
-              value={nameRoom}
-              placeholder="Tên phòng"
-            />
+          <div className="min-w-[400px]">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
+              {/* register your input into the hook by invoking the "register" function */}
+              <div className="flex flex-col pb-6 relative">
+                <label htmlFor="nameRoom">Tên phòng</label>
+                <input
+                  className="h-8 outline-none rounded-lg px-2"
+                  id="nameRoom"
+                  {...register("nameRoom", validateOptions.nameRoom)}
+                  placeholder="Tên phòng"
+                />
+                {errors.nameRoom && (
+                  <p className="text-xs text-red-500 absolute bottom-[6px]">
+                    {`${errors.nameRoom.message}`}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col pb-6 relative">
+                <label htmlFor="capacity">Số lượng người chơi</label>
+                <input
+                  className="h-8 outline-none rounded-lg px-2"
+                  id="capacity"
+                  {...register("capacity", validateOptions.capacity)}
+                  placeholder="2 <= x <= 5"
+                />
+                {errors.capacity && (
+                  <p className="text-xs text-red-500 absolute bottom-[6px]">
+                    {`${errors.capacity.message}`}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col pb-6 relative">
+                <label htmlFor="ratio">Kích thước bảng</label>
+                <input
+                  className="h-8 outline-none rounded-lg px-2"
+                  id="ratio"
+                  {...register("ratio", validateOptions.ratio)}
+                  placeholder="x >= 5"
+                />
+
+                {errors.ratio && (
+                  <p className="text-xs text-red-500 absolute bottom-[6px]">
+                    {`${errors.ratio.message}`}
+                  </p>
+                )}
+              </div>
+              <input
+                type="submit"
+                className="bg-[#333] text-white rounded-full py-2 cursor-pointer"
+                value={"Tạo phòng mới"}
+              />
+            </form>
           </div>
-          <div className="mt-3">
-            <label htmlFor="">Số người chơi</label>
-            <input
-              type="text"
-              onChange={(e) => {
-                setCapacity(e.target.value);
-              }}
-              className="min-w-96 outline-none rounded-md h-10 px-3 block"
-              value={capacity}
-              placeholder="Số lượng người trên phòng (>=2)"
-            />
-          </div>
-          <div className="mt-3 flex justify-between">
-            <label htmlFor="">Kích cỡ bảng</label>
-            <select
-              name=""
-              id=""
-              value={ratio}
-              onChange={(e) => {
-                setRatio(e.target.value);
-              }}
-              className="px-4 "
-            >
-              <option value="16">16</option>
-              <option value="32">32</option>
-            </select>
-          </div>
-          <button
-            className="bg-main-color text-white px-4 py-2 rounded-md block mx-auto my-4"
-            onClick={() => {
-              handleCreateRoom();
-            }}
-          >
-            Tạo phòng mới +{" "}
-          </button>
         </div>
       )}
+
       <div className="bgHome fixed top-0 left-0 right-0 bottom-0"></div>
       {/* <div className="absolute top-0">Start</div> */}
       <div>

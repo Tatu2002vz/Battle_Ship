@@ -17,7 +17,9 @@ const excFn = async () => {
     attackedId: { type: "string" }, // id người đã tấn công điểm này
   });
   const pointAttackedReposistory = client.fetchRepository(pointAttacked);
-  await pointAttackedReposistory.createIndex();
+  // const rs = await pointAttackedReposistory.createIndex();  //only once time
+  // console.log(JSON.stringify(pointAttackedReposistory))
+  // console.log('rs: ' + JSON.stringify(rs))
   return pointAttackedReposistory;
 };
 module.exports = excFn;
