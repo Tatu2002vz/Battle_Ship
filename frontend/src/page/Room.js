@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Player from "../component/Player";
 import { useNavigate, useParams } from "react-router-dom";
+import Swal from "sweetalert2";
 const Room = ({ socket }) => {
   const [isReady, setIsReady] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -19,7 +20,13 @@ const Room = ({ socket }) => {
         socket.emit("visited", data);
       });
       socket.on("error", (data) => {
-        console.log(data);
+        console.log("error: ", data);
+        Swal.fire({
+          title: `Lỗi xảy ra: ${data}`,
+          timer: 2000,
+          icon: "info",
+          showConfirmButton: false,
+        });
         navigate("/");
       });
       socket.emit("joinRoom", {
@@ -31,12 +38,20 @@ const Room = ({ socket }) => {
       socket.on("getPlayers", (data) => {
         if (data.success) {
           setPlayers(data.mes);
+          // console.log(data.mes)
+          data.mes.forEach(element => {
+            console.log(element)
+            if(element.token === localStorage.getItem('token')) {
+              console.log(element.ready)
+              setIsReady(element.ready)
+            }
+          });
         }
       });
       socket.on("joinGame", () => {
         setTimeout(() => {
           navigate("/playing/" + id);
-        }, 1);
+        }, 5000);
         setShowCountdown(true);
         handleJoinGame();
       });
@@ -97,12 +112,13 @@ const Room = ({ socket }) => {
         <Player name={"Tạ Văn Tú"} />
         <Player name={"Tạ Văn Tú"} /> */}
         {players.map((item, index) => {
+          
           return <Player name={item.name} ready={item.ready} key={index} />;
         })}
       </div>
       {!isReady ? (
         <button
-          className="px-4 py-2 bg-main-color text-white w-28"
+          className="px-4 py-2 bg-btn-main text-white w-28"
           onClick={() => {
             setIsReady(true);
             handleReady(true);

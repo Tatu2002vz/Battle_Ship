@@ -6,21 +6,10 @@ import { apiGetPoint } from "../api/point";
 import Swal from "sweetalert2";
 import lostImg from "../assets/img/lost.jpg";
 import LeaderBoard from "../component/LeaderBoard";
+import { apiGetRoom } from "../api/Room";
 const Playing = ({ socket }) => {
-  const [matrix, setMatrix] = useState(() => {
-    // tạo mảng 2 chiều
-    let matrix = new Array(32);
-    for (let i = 0; i < matrix.length; i++) {
-      matrix[i] = new Array(32);
-    }
-    // điền giá trị 0 vào tất cả
-    for (let i = 0; i < matrix.length; i++) {
-      for (let j = 0; j < matrix[i].length; j++) {
-        matrix[i][j] = false;
-      }
-    }
-    return matrix;
-  });
+  const [matrix, setMatrix] = useState(null);
+  // const matrix = useRef(null);
   const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
   const [nameTurn, setNameTurn] = useState("");
@@ -28,6 +17,7 @@ const Playing = ({ socket }) => {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [points, setPoints] = useState([]);
   const [pointFire, setPointFire] = useState([]); // điểm tấn công trúng và bị cháy
+  const [ratio, setRatio] = useState(0);
   console.log("point fire: " + pointFire);
   const handleKick = (i, j) => {
     if (
@@ -35,6 +25,7 @@ const Playing = ({ socket }) => {
       matrix[i][j] !== true &&
       !points.find((el) => el.x === i && el.y === j)
     ) {
+      console.log("matrix: " + matrix[i][j]);
       setMatrix(() => {
         const newMatrix = matrix;
         newMatrix[i][j] = true;
@@ -68,68 +59,88 @@ const Playing = ({ socket }) => {
       setPoints((prev) => [...prev, ...points.mes]);
     }
   };
+  const getRoom = async () => {
+    console.log("1");
+    const fetchRoom = await apiGetRoom({ id });
+    console.log("fetchRoom: " + JSON.stringify(fetchRoom));
+    console.log("api");
+    setMatrix(() => {
+      // tạo mảng 2 chiều
+      console.log(fetchRoom?.message.ratio);
+      const ratio = fetchRoom.message.ratio;
+      let matrix = new Array(ratio);
+      for (let i = 0; i < matrix.length; i++) {
+        matrix[i] = new Array(ratio);
+      }
+      // điền giá trị 0 vào tất cả
+      for (let i = 0; i < matrix.length; i++) {
+        for (let j = 0; j < matrix[i].length; j++) {
+          matrix[i][j] = false;
+        }
+      }
+      // console.log('matrix: ' + JSON.stringify(matrix[5]))
+      return matrix;
+    });
+    if (fetchRoom?.message.ratio === 32) setRatio(5);
+    else {
+      console.log("haha");
+      setRatio(10);
+    }
+  };
   useEffect(() => {
-    getPoint();
+    getRoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (socket) {
+      socket.emit("update item", "1", { name: "updated" }, (response) => {
+        console.log(response.status); // ok
+      });
       socket.on("connect", () => {
         let socketId = socket.id;
         const data = {
           token: localStorage.getItem("token"),
           socketId: socketId,
         };
-        socket.emit("visited", data);
+        socket.emit("visited", data, function abc(rs) {
+          console.log("object");
+        });
       });
-      socket.emit("playing", { roomId: id });
       socket.on("error", (data) => {
         console.log("data error");
         navigate("/");
       });
-      socket.emit("joinRoom", {
-        roomId: id,
-        token: localStorage.getItem("token"),
-      });
+      socket.emit(
+        "joinRoom",
+        {
+          roomId: id,
+          token: localStorage.getItem("token"),
+        },
+        (rs) => {
+          console.log("object: " + rs);
+          if (rs === "success") {
+            socket.emit("playing", { roomId: id });
+          }
+        }
+      );
       socket.on("getPlayers", (data) => {
         if (data.success) {
           setPlayers(data.mes);
         }
       });
-      socket.on("pointActtacked", (data) => {
-        data.forEach((el) => {
-          hitPoint(el.x, el.y);
 
-          if (el.playerId !== "") {
-            const { x, y } = el;
-            setPointFire((prev) => [...prev, { x, y }]);
-          }
-        });
-      });
       socket.on("myTurn", () => {
         setIsMyTurn(true);
       });
       socket.on("notificationTurn", (data) => {
+        console.log("data token:" + data.token);
         if (data.token === localStorage.getItem("token")) {
+          console.log("data token true");
+          setIsMyTurn(true);
           setNameTurn("Bạn");
         } else {
           setNameTurn(data.name);
         }
       });
-      socket.on("rsKick", (data) => {
-        const { x, y, success, notification, endGame } = data;
-        console.log("data rs kick: " + JSON.stringify(data));
-        hitPoint(x, y);
-        if (success) {
-          setPointFire((prev) => [...prev, { x, y }]);
-        }
-        if (notification && !endGame) {
-          // Swal.fire({
-          //   position: "top-end",
-          //   icon: "info",
-          //   title: notification,
-          //   showConfirmButton: false,
-          //   timer: 1500,
-          // });
-        }
-      });
+
       socket.on("endGame", (data) => {
         // Swal.fire({
         //   title: "Do you want to save the changes?",
@@ -161,10 +172,64 @@ const Playing = ({ socket }) => {
       socket.off("getPlayers");
       socket.off("rsKick");
       socket.off("notificationTurn");
-      socket.off("pointActtacked");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    // ---------------
+    if (ratio !== 0) {
+      // const aaa = () => {
+      //   // tạo mảng 2 chiều
+      //   let matrix = new Array(32);
+      //   for (let i = 0; i < matrix.length; i++) {
+      //     matrix[i] = new Array(32);
+      //   }
+      //   // điền giá trị 0 vào tất cả
+      //   for (let i = 0; i < matrix.length; i++) {
+      //     for (let j = 0; j < matrix[i].length; j++) {
+      //       matrix[i][j] = false;
+      //     }
+      //   }
+      //   return matrix;
+      // };
+
+      // ----------------
+      getPoint();
+      socket.on("pointActtacked", (data) => {
+        data.forEach((el) => {
+          console.log("socket");
+          hitPoint(el.x, el.y);
+
+          if (el.playerId !== "") {
+            const { x, y } = el;
+            setPointFire((prev) => [...prev, { x, y }]);
+          }
+        });
+      });
+      socket.on("rsKick", (data) => {
+        const { x, y, success, notification, endGame } = data;
+        console.log("data rs kick: " + JSON.stringify(data));
+        hitPoint(x, y);
+        if (success) {
+          setPointFire((prev) => [...prev, { x, y }]);
+        }
+        if (notification && !endGame) {
+          // Swal.fire({
+          //   position: "top-end",
+          //   icon: "info",
+          //   title: notification,
+          //   showConfirmButton: false,
+          //   timer: 1500,
+          // });
+        }
+      });
+      return () => {
+        socket.off("pointActtacked");
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matrix]);
+
   const notiLostGame = () => {
     Swal.fire({
       title: "Bạn đã thua cuộc!",
@@ -227,7 +292,7 @@ const Playing = ({ socket }) => {
         </div>
         <div>
           <div className="flex gap-6 justify-center p-5">
-            {players.map((item, index) => {
+            {players?.map((item, index) => {
               return <Player name={item.name} ready={item.ready} key={index} />;
             })}
           </div>
@@ -239,7 +304,7 @@ const Playing = ({ socket }) => {
 
       <div>
         <table className="mx-auto bg-slate-400/30 backdrop:blur-xl">
-          {matrix.map((item, index) => {
+          {matrix?.map((item, index) => {
             return (
               <tr key={index}>
                 {item.map((el, idx) => {
@@ -248,7 +313,9 @@ const Playing = ({ socket }) => {
                   );
                   return (
                     <td
-                      className={`w-5 h-5 hover:bg-blue-300 ${fire && "bgFire"}
+                      className={`${
+                        ratio === 5 ? "w-5 h-5" : "w-10 h-10"
+                      } hover:bg-blue-300 ${fire && "bgFire"}
                         ${
                           points.find((el) => el.x === index && el.y === idx) &&
                           "bgShip"
@@ -260,7 +327,14 @@ const Playing = ({ socket }) => {
                         handleKick(index, idx);
                       }}
                     >
-                      {el && !fire ? <IoMdClose color="red" /> : <></>}
+                      {el && !fire ? (
+                        <IoMdClose
+                          className={`${ratio === 5 ? "" : "text-4xl"}`}
+                          color="red"
+                        />
+                      ) : (
+                        <></>
+                      )}
                     </td>
                   );
                 })}

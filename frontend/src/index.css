@@ -94,10 +94,10 @@ td.bgFire {
 }
 .title:nth-child(1) {
   color: transparent;
-  -webkit-text-stroke: 3px #26A3C2;
+  -webkit-text-stroke: 3px #333;
 }
 .title:nth-child(2) {
-  color: #26A3C2;
+  color: #333;
   animation: animate 4s ease-in-out infinite;
 }
 @keyframes animate {

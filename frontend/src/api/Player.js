@@ -1,6 +1,6 @@
 import axios from '../axios'
 
-export const apiGetRoom = () => axios({
+export const apiGetRooms = () => axios({
     url: 'room',
     method: 'GET',
 })

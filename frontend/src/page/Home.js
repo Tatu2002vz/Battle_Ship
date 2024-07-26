@@ -3,12 +3,14 @@ import { MdMeetingRoom } from "react-icons/md";
 import { IoClose } from "react-icons/io5";
 import RoomComponent from "../component/RoomComponent";
 import { useNavigate } from "react-router-dom";
-import { apiGetRoom } from "../api/Room";
+import { apiGetRooms } from "../api/Room";
 import Swal from "sweetalert2";
 const Home = ({ socket }) => {
   const [name, setName] = useState("");
   const [isCreateRoom, setIsCreateRoom] = useState(false);
   const [nameRoom, setNameRoom] = useState("");
+  const [capacity, setCapacity] = useState(5);
+  const [ratio, setRatio] = useState(16);
   const [listRoom, setListRoom] = useState([]);
   const navigate = useNavigate();
   // const { socket } = useContext(SocketContext);
@@ -16,7 +18,7 @@ const Home = ({ socket }) => {
   //   return io(process.env.REACT_APP_URL_SERVER);
   // }, []);
   const getAllRooms = async () => {
-    const allRooms = await apiGetRoom();
+    const allRooms = await apiGetRooms();
     if (allRooms?.success) {
       setListRoom(allRooms?.mes);
     } else {
@@ -120,26 +122,44 @@ const Home = ({ socket }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const handleCreateRoom = () => {
-    const data = {
-      nameRoom,
-      capacity: 5,
-      token: localStorage.getItem("token"),
-    };
-    socket.emit("createRoom", data);
-    socket.on("createRoom", (data) => {
-      console.log(data);
-      if (data.success) {
-        navigate("/room/" + data.mes.entityId);
-      } else {
+    if (!isNaN(Number(capacity))) {
+      if (Number(capacity) < 2) {
         Swal.fire({
-          position: "top-end",
+          title: "Số người phải lớn hơn 1!",
           icon: "error",
-          title: "Có lỗi xảy ra!",
-          showConfirmButton: false,
-          timer: 1500,
+        });
+      } else if (Number(capacity) > 5) {
+        Swal.fire({
+          title: "Số người tối đa là 5!",
+          icon: "error",
+        });
+      } else {
+        const data = {
+          nameRoom,
+          capacity: capacity,
+          ratio: ratio,
+          token: localStorage.getItem("token"),
+        };
+        console.log(data);
+        socket.emit("createRoom", data);
+        socket.on("createRoom", (data) => {
+          console.log(data);
+          if (data.success) {
+            navigate("/room/" + data.mes.entityId);
+          } else {
+            Swal.fire({
+              position: "top-end",
+              icon: "error",
+              title: "Có lỗi xảy ra!",
+              showConfirmButton: false,
+              timer: 1500,
+            });
+          }
         });
       }
-    });
+    } else {
+      Swal.fire({ title: "Phải nhập số!", icon: "error" });
+    }
   };
   const handleChangeName = () => {
     socket.emit("changeName", name);
@@ -147,7 +167,7 @@ const Home = ({ socket }) => {
   return (
     <div className="relative">
       {isCreateRoom && (
-        <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md">
+        <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md ">
           <IoClose
             className="absolute right-0 top-0 cursor-pointer"
             size={30}
@@ -157,13 +177,43 @@ const Home = ({ socket }) => {
           <h1 className="text-2xl font-bold flex justify-center mb-3">
             Tạo phòng mới
           </h1>
-          <input
-            type="text"
-            onChange={(e) => setNameRoom(e.target.value)}
-            className="min-w-96 outline-none rounded-md h-10 px-3"
-            value={nameRoom}
-            placeholder="Tên phòng"
-          />
+          <div className="mt-3">
+            <label htmlFor="">Tên phòng</label>
+            <input
+              type="text"
+              onChange={(e) => setNameRoom(e.target.value)}
+              className="min-w-96 outline-none rounded-md h-10 px-3 block"
+              value={nameRoom}
+              placeholder="Tên phòng"
+            />
+          </div>
+          <div className="mt-3">
+            <label htmlFor="">Số người chơi</label>
+            <input
+              type="text"
+              onChange={(e) => {
+                setCapacity(e.target.value);
+              }}
+              className="min-w-96 outline-none rounded-md h-10 px-3 block"
+              value={capacity}
+              placeholder="Số lượng người trên phòng (>=2)"
+            />
+          </div>
+          <div className="mt-3 flex justify-between">
+            <label htmlFor="">Kích cỡ bảng</label>
+            <select
+              name=""
+              id=""
+              value={ratio}
+              onChange={(e) => {
+                setRatio(e.target.value);
+              }}
+              className="px-4 "
+            >
+              <option value="16">16</option>
+              <option value="32">32</option>
+            </select>
+          </div>
           <button
             className="bg-main-color text-white px-4 py-2 rounded-md block mx-auto my-4"
             onClick={() => {
@@ -227,7 +277,8 @@ const Home = ({ socket }) => {
             <div>Không có phòng nào đang tồn tại!</div>
           )}
           {listRoom?.map((item, index) => {
-            return (
+            console.log("start: " + item.isStart);
+            return !item?.isStart ? (
               <RoomComponent
                 key={index}
                 name={item?.name}
@@ -236,6 +287,8 @@ const Home = ({ socket }) => {
                 id={item?.entityId}
                 isStart={item?.isStart}
               />
+            ) : (
+              <Fragment></Fragment>
             );
           })}
         </div>
