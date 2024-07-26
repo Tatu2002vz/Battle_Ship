@@ -3,8 +3,7 @@ const { Server } = require("socket.io");
 const { instrument } = require("@socket.io/admin-ui");
 const {
   createRoom,
-  getAllRooms,
-  deleteRoom,
+  // deleteRoom,
   getPlayerOfRoom,
   joinRoom,
   leaveRoom,
@@ -13,7 +12,6 @@ const {
 } = require("../controllers/room");
 const {
   createPlayer,
-  deletePlayer,
   readyPlayer,
   updatePlayer,
   getCurrent,
@@ -41,7 +39,6 @@ const socketModule = (server) => {
   });
   io.on("connection", async (socket) => {
     const token = socket.handshake.auth.token;
-    console.log("token auth: " + token);
     console.log(socket.id);
     console.log(io.sockets.sockets.size);
     // Tạo hoặc cập nhật user mỗi khi truy cập
@@ -51,7 +48,6 @@ const socketModule = (server) => {
     // Lấy thông tin hiện tại của người dùng
     socket.on("current", async () => {
       const data = await getCurrent(token);
-      console.log('current: ' + JSON.stringify(data))
       if (data && data.success) socket.emit("current", data.mes);
     });
     socket.on("changeName", async (data) => {
@@ -61,8 +57,8 @@ const socketModule = (server) => {
     // const listRoom = await getAllRooms();
     // io.emit("getRoom", listRoom);
     // Tạo phòng
-    socket.on("createRoom", async ({ nameRoom, capacity, token }) => {
-      const rs = await createRoom({ nameRoom, capacity, token });
+    socket.on("createRoom", async ({ nameRoom, capacity, token, ratio }) => {
+      const rs = await createRoom({ nameRoom, capacity, token, ratio });
 
       socket.emit("createRoom", rs);
       // Trả về danh sách cho all khi tạo xong
@@ -77,15 +73,18 @@ const socketModule = (server) => {
       io.emit("getPlayers", players);
     });
     // Tham gia phòng
-    socket.on("joinRoom", async (data) => {
+    socket.on("joinRoom", async (data, callback) => {
       // console.log(JSON.stringify(data))
       // console.log(JSON.parse(data));
       const roomId = data.roomId;
       const rsJoinRoom = await joinRoom(socket, roomId, data.token);
-      console.log('Lỗi xảy ra khi join room: ' + JSON.stringify(rsJoinRoom))
       const players = await getPlayerOfRoom(roomId);
-      if(data.type === 'room' && rsJoinRoom.type === 'playing') {
-        socket.emit('onGame')
+      if (data.type === "room" && rsJoinRoom?.type === "playing") {
+        console.log("onGame");
+        socket.emit("onGame");
+      }
+      if (callback) {
+        callback("success");
       }
       io.to(roomId).emit("getPlayers", players);
       if (!rsJoinRoom?.success) {
@@ -93,6 +92,14 @@ const socketModule = (server) => {
       }
     });
 
+    // socket.on("update item", async (arg1, arg2, callback) => {
+    //   console.log(arg1); // 1
+    //   console.log(arg2); // { name: "updated" }
+    //   console.log(callback)
+    //   callback({
+    //     status: "ok"
+    //   });
+    // });
     // Thoát phòng
     socket.on("leaveRoom", async (data) => {
       const { roomId, token } = data;
@@ -121,7 +128,6 @@ const socketModule = (server) => {
     // Vào game
     socket.on("playing", async (data) => {
       const { roomId } = data;
-      console.log("get turn");
       await checkEndGame(roomId);
       await getTurn({ roomId, io });
       // Lấy các điểm đã tấn công nếu có khi bị mất kết nối
@@ -143,10 +149,7 @@ const socketModule = (server) => {
             // kết thúc game
             io.to(endGame.winner.socketId).emit("endGame", endGame?.winner);
           }
-          console.log('object lost: ' + JSON.stringify(lost))
           if (lost) {
-
-            console.log('Lost game: ' + playerBeAttacked.socketId);
             // thua game
             io.to(playerBeAttacked.socketId).emit("lostGame");
           }

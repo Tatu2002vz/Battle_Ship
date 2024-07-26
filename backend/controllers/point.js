@@ -60,14 +60,11 @@ const createPoint = async (data) => {
               endGame = await checkEndGame(roomId);
             }
             // console.log('')
-            console.log("Token point: " + isExist.playerId);
             const playerBeAttacked = await Player.search()
               .where("token")
               .equals(isExist.playerId)
               .return.first();
-            console.log("playerBeAttacked: ", JSON.stringify(playerBeAttacked));
             // console.log('Lost')
-            console.log("check: " + check);
             if (endGame && endGame.success) {
               return {
                 success: true,

@@ -25,9 +25,9 @@ const checkEndGame = async (roomId) => {
           points.forEach(async (point) => {
             await Point.remove(point.entityId);
           });
-          console.log("Đã xóa tất cả các điểm của room: " + roomId);
           // Xóa id phòng của player chiến thắng
           playerOfRoom[0].roomId = "";
+          playerOfRoom[0].point = 0;
           await resetPointAndRoom(playerOfRoom[0].token)
           await Player.save(playerOfRoom[0]);
           // Lưu lịch sử vào database

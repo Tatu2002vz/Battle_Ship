@@ -16,6 +16,7 @@ const excFn = async () => {
     isEnd: { type: "boolean" },
     createdAt: { type: "date" },
     turn: { type: "number" },
+    ratio: { type: "number" },
   });
   const roomRepository = client.fetchRepository(roomSchema);
   await roomRepository.createIndex();

@@ -7,20 +7,24 @@ const createRoom = async (data) => {
   const Room = await roomRepository();
   const Player = await playerRepository();
   try {
-    const { token, nameRoom, capacity } = data;
-    const exist = await Room.search()
-      .where("name")
-      .equals(nameRoom)
-      .return.all();
-    if (exist.length > 0) {
-      return { success: false, mes: "Phòng đã tồn tại!" };
+    const { token, nameRoom, capacity, ratio } = data;
+    if (Number(nameRoom) > 5) nameRoom = 5;
+    if (nameRoom) {
+      const exist = await Room.search()
+        .where("name")
+        .equals(nameRoom)
+        .return.all();
+      if (exist.length > 0) {
+        return { success: false, mes: "Phòng đã tồn tại!" };
+      }
     }
     let newRoom = {
-      name: nameRoom,
+      name: nameRoom ? nameRoom : "New Room",
       numberOfRoom: 1,
-      capacity,
+      capacity: capacity ? Number(capacity) : 5,
       isStart: false,
       isEnd: false,
+      ratio: ratio ? Number(ratio) : 16,
       createdAt: Date.now(),
       turn: 0,
     };
@@ -38,35 +42,32 @@ const createRoom = async (data) => {
     return { success: false, mes: "Tạo phòng thất bại: " + e.message };
   }
 };
-const deleteRoom = async (data) => {
-  const Room = await roomRepository();
-  const Player = await playerRepository();
-  try {
-    const socketId = data.socketId;
-    const player = await Player.search()
-      .where("socketId")
-      .equals(socketId)
-      .return.first();
-    if (player) {
-      console.log("roomID: " + player.roomId);
-      const room = await Room.fetch(player.roomId);
-      if (room.entityId && room.name !== null) {
-        console.log("room: " + JSON.stringify(room));
-        await Room.save(room);
-        const personCount = await Player.search()
-          .where("roomId")
-          .equals(player.roomId)
-          .return.count();
-        console.log("personCount: " + personCount);
-        if (room && !room.isStarted && personCount === 1) {
-          await Room.remove(player.roomId);
-        }
-      }
-    }
-  } catch (error) {
-    console.log("Lỗi khi xóa phòng: " + error.message);
-  }
-};
+// const deleteRoom = async (data) => {
+//   const Room = await roomRepository();
+//   const Player = await playerRepository();
+//   try {
+//     const socketId = data.socketId;
+//     const player = await Player.search()
+//       .where("socketId")
+//       .equals(socketId)
+//       .return.first();
+//     if (player) {
+//       const room = await Room.fetch(player.roomId);
+//       if (room.entityId && room.name !== null) {
+//         await Room.save(room);
+//         const personCount = await Player.search()
+//           .where("roomId")
+//           .equals(player.roomId)
+//           .return.count();
+//         if (room && !room.isStarted && personCount === 1) {
+//           await Room.remove(player.roomId);
+//         }
+//       }
+//     }
+//   } catch (error) {
+//     console.log("Lỗi khi xóa phòng: " + error.message);
+//   }
+// };
 
 const getAllRooms = async (req, res) => {
   try {
@@ -87,6 +88,7 @@ const getAllRooms = async (req, res) => {
     //   // room.numberPerson = countPerson.length
     //   // await Room.save(room)
     // });
+    const newListRoom = []
     for (const room of listRoom) {
       const countPerson = await Player.search()
         .where("roomId")
@@ -96,9 +98,14 @@ const getAllRooms = async (req, res) => {
       // newListRoom.push(copy_room);
       // room.numberPerson = countPerson.length
       room.numberOfRoom = countPerson.length;
+      if (countPerson.length === 0) {
+        await Room.remove(room.entityId);
+      } else {
+        newListRoom.push(room)
+      }
       await Room.save(room);
     }
-    return res.status(200).json({ success: true, mes: listRoom });
+    return res.status(200).json({ success: true, mes: newListRoom });
   } catch (error) {
     console.log("Lỗi khi lấy tất cả phòng!" + error.message);
   }
@@ -129,7 +136,6 @@ const joinRoom = async (socket, room, token) => {
     const Room = await roomRepository();
     const roomSearch = await Room.fetch(room);
     if (roomSearch && roomSearch.entityId && roomSearch.name !== null) {
-      console.log("roomsearch is start: " + roomSearch.isStart);
       if (roomSearch.isStart) {
         const player = await Player.search()
           .where("token")
@@ -148,13 +154,15 @@ const joinRoom = async (socket, room, token) => {
           };
         }
       } else {
-        const playerCount = (await Player.search().where('roomId').equals(room).return.all()).length; 
-        if(playerCount < roomSearch.capacity ) {
+        const playerCount = (
+          await Player.search().where("roomId").equals(room).return.all()
+        ).length;
+        const player = await Player.search()
+          .where("token")
+          .equals(token)
+          .return.first();
+        if (playerCount < roomSearch.capacity) {
           socket.join(room);
-          const player = await Player.search()
-            .where("token")
-            .equals(token)
-            .return.first();
           if (player && player.entityId) {
             player.roomId = room;
             await Player.save(player);
@@ -164,10 +172,17 @@ const joinRoom = async (socket, room, token) => {
             type: "waiting",
           };
         } else {
+          if (player.roomId === room) {
+            socket.join(room);
+            return {
+              success: true,
+              type: "waiting",
+            };
+          }
           return {
             success: false,
-            mes: "Phòng này đã đầy!"
-          }
+            mes: "Phòng này đã đầy!",
+          };
         }
       }
     } else {
@@ -208,9 +223,7 @@ const leaveRoom = async (socket, room, token, io) => {
         .where("roomId")
         .equals(room)
         .return.all();
-      console.log("room isnt start" + players.length);
       if (players.length === 0) {
-        console.log('remove')
         await Room.remove(room);
       }
     }
@@ -277,13 +290,31 @@ const checkAllPlayersReady = async (roomId) => {
   }
 };
 
+const apiGetRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const Room = await roomRepository();
+    const room = await Room.fetch(roomId);
+    if (room.name) {
+      return res.status(200).json({ success: true, message: room });
+    } else {
+      return res
+        .status(200)
+        .json({ success: false, message: "Không tìm thấy phòng" });
+    }
+  } catch (error) {
+    console.log("Lỗi khi lấy thông tin phòng!" + error.message);
+  }
+};
+
 module.exports = {
   createRoom,
-  deleteRoom,
+  // deleteRoom,
   getAllRooms,
   joinRoom,
   leaveRoom,
   socketGetAllRooms,
   getPlayerOfRoom,
   checkAllPlayersReady,
+  apiGetRoom,
 };

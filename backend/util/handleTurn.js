@@ -17,7 +17,9 @@ const getTurn = async ({ roomId, io }) => {
       if (!playerTurn) {
         await nextTurn(roomId);
       }
-      io.to(playerTurn?.socketId).emit("myTurn");
+      // io.to(playerTurn?.socketId).emit("myTurn");
+      console.log("Tới lượt: " + playerTurn.socketId);
+      console.log("Tới lượt: " + playerTurn.name);
       io.in(roomId).emit("notificationTurn", {
         name: playerTurn?.name,
         token: playerTurn?.token,
@@ -58,7 +60,6 @@ const nextTurn = async (roomId) => {
         if (turn >= 5) {
           turn = 0;
         }
-        console.log("Turn: " + playTurn?.name);
       } while (!playTurn);
       room.turn = turn;
       await Room.save(room);

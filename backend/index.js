@@ -8,6 +8,7 @@ const bodyParser = require("body-parser");
 
 const { createServer } = require("http");
 const socketModule = require("./module/socket");
+const { connectRedis } = require("./config/redis");
 const app = express();
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -21,8 +22,8 @@ app.use(
     origin: "*",
   })
 );
-
 dbConnect();
+connectRedis();
 initRoutes(app);
 const server = createServer(app);
 

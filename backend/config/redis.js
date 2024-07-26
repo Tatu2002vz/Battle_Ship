@@ -1,7 +1,7 @@
 const { createClient } = require("redis");
 let client = null;
 const connectRedis = async () => {
-  client = createClient({ url: "redis://127.0.0.1:6379" });
+  client = createClient({ url: process.env.REDIS_URL });
 
   client.on("error", (err) => console.log("Redis Client Error", err));
 
