@@ -240,6 +240,7 @@ const Home = ({ socket }) => {
                 capacity={item?.capacity}
                 id={item?.entityId}
                 isStart={item?.isStart}
+                ratio={item?.ratio}
               />
             ) : (
               <Fragment></Fragment>

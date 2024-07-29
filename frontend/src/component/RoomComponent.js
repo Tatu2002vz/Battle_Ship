@@ -1,7 +1,7 @@
 import { HiUserGroup } from "react-icons/hi2";
 import { NavLink } from "react-router-dom";
 
-const RoomComponent = ({ name, numberOfPlayer, capacity, id, isStart }) => {
+const RoomComponent = ({ name, numberOfPlayer, capacity, id, isStart, ratio }) => {
   return (
     <NavLink
       to={"/room/" + id}
@@ -9,7 +9,7 @@ const RoomComponent = ({ name, numberOfPlayer, capacity, id, isStart }) => {
       title="Click để tham gia"
     >
       <p>{name}</p>
-      {isStart && <p>Đang chơi...</p>}
+      <p>{ratio && `${ratio}x${ratio}`}</p>
       <p className="flex items-center">
         {numberOfPlayer}/{capacity} <HiUserGroup className="ml-1" />
       </p>
