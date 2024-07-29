@@ -17,15 +17,11 @@ const Home = ({ socket }) => {
 
   const [name, setName] = useState("");
   const [isCreateRoom, setIsCreateRoom] = useState(false);
-  // const [nameRoom, setNameRoom] = useState("");
-  // const [capacity, setCapacity] = useState(5);
-  // const [ratio, setRatio] = useState(16);
+
   const [listRoom, setListRoom] = useState([]);
   const navigate = useNavigate();
-  // const { socket } = useContext(SocketContext);
-  // const socket = useMemo(() => {
-  //   return io(process.env.REACT_APP_URL_SERVER);
-  // }, []);
+
+  // Fetch API get list rooms
   const getAllRooms = async () => {
     const allRooms = await apiGetRooms();
     if (allRooms?.success) {
@@ -43,32 +39,8 @@ const Home = ({ socket }) => {
   useEffect(() => {
     // lấy danh sách phòng
     getAllRooms();
-    // socket.connect();
-    // const handlePageShow = (event) => {
-    //   console.log("abc");
-    //   if (event.persisted) {
-    //     console.log("hihi");
-    //     socket.disconnect();
-    //     // socket = null;
-    //     // initiateConnection();
-    //   }
-    // };
 
-    // initiateConnection();
-
-    // window.addEventListener("pageshow", (event) => {
-    //   if (event.persisted) {
-    //     console.log("This page was restored from the bfcache.");
-    //     navigate(0);
-    //   } else {
-    //     console.log("This page was loaded normally.");
-    //   }
-    // });
-    // window.addEventListener("unload", function () {});
-    // window.addEventListener("beforeunload", function () {});
-    // socket.connect();
     if (socket) {
-      // console.log(JSON.stringify(socket))
       let token = localStorage.getItem("token");
       if (token) {
         socket.on("connect", () => {
@@ -78,7 +50,6 @@ const Home = ({ socket }) => {
         setTimeout(() => {
           socket.emit("current");
           socket.on("current", (data) => {
-            console.log("current: " + JSON.stringify(data));
             if (data?.roomId !== "") {
               navigate("/room/" + data?.roomId);
             }
@@ -103,7 +74,6 @@ const Home = ({ socket }) => {
         });
         // lấy danh sách phòng
         socket.on("getRoom", (data) => {
-          // console.log("getroom");
           if (data.success) {
             setListRoom(data.mes);
           } else {
@@ -133,9 +103,7 @@ const Home = ({ socket }) => {
   const onSubmit = (data) => {
     data.token = localStorage.getItem("token");
     socket.emit("createRoom", data);
-    console.log(data);
     socket.on("createRoom", (data) => {
-      console.log(data);
       if (data.success) {
         navigate("/room/" + data.mes.entityId);
       } else {
@@ -150,123 +118,13 @@ const Home = ({ socket }) => {
     });
   };
 
-  // const handleCreateRoom = () => {
-  //   if (!isNaN(Number(capacity)) && !isNaN(Number(ratio))) {
-  //     if (Number(capacity) < 2) {
-  //       Swal.fire({
-  //         title: "Số người phải lớn hơn 1!",
-  //         icon: "error",
-  //       });
-  //     } else if (Number(capacity) > 5) {
-  //       Swal.fire({
-  //         title: "Số người tối đa là 5!",
-  //         icon: "error",
-  //       });
-  //     } else {
-  //       const data = {
-  //         nameRoom,
-  //         capacity: capacity,
-  //         ratio: ratio,
-  //         token: localStorage.getItem("token"),
-  //       };
-  //       console.log(data);
-  //       socket.emit("createRoom", data);
-  //       socket.on("createRoom", (data) => {
-  //         console.log(data);
-  //         if (data.success) {
-  //           navigate("/room/" + data.mes.entityId);
-  //         } else {
-  //           Swal.fire({
-  //             position: "top-end",
-  //             icon: "error",
-  //             title: "Có lỗi xảy ra!",
-  //             showConfirmButton: false,
-  //             timer: 1500,
-  //           });
-  //         }
-  //       });
-  //     }
-  //   } else {
-  //     Swal.fire({ title: "Phải nhập số!", icon: "error" });
-  //   }
-  // };
+
   const handleChangeName = () => {
     socket.emit("changeName", name);
   };
   return (
     <div className="relative">
       {isCreateRoom && (
-        // <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md ">
-        //   <IoClose
-        //     className="absolute right-0 top-0 cursor-pointer"
-        //     size={30}
-        //     title="Thoát"
-        //     onClick={() => setIsCreateRoom(false)}
-        //   />
-        //   <h1 className="text-2xl font-bold flex justify-center mb-3">
-        //     Tạo phòng mới
-        //   </h1>
-        //   <div className="mt-3">
-        //     <label htmlFor="">Tên phòng</label>
-        //     <input
-        //       type="text"
-        //       onChange={(e) => setNameRoom(e.target.value)}
-        //       className="min-w-96 outline-none rounded-md h-10 px-3 block"
-        //       value={nameRoom}
-        //       placeholder="Tên phòng"
-        //     />
-        //   </div>
-        //   <div className="mt-3">
-        //     <label htmlFor="">Số người chơi</label>
-        //     <input
-        //       type="text"
-        //       onChange={(e) => {
-        //         setCapacity(e.target.value);
-        //       }}
-        //       className="min-w-96 outline-none rounded-md h-10 px-3 block"
-        //       value={capacity}
-        //       placeholder="Số lượng người trên phòng (>=2)"
-        //     />
-        //   </div>
-        //   <div className="mt-3">
-        //     <label htmlFor="">Kích cỡ bảng</label>
-        //     <input
-        //       type="text"
-        //       onChange={(e) => {
-        //         setRatio(e.target.value);
-        //       }}
-        //       className="min-w-96 outline-none rounded-md h-10 px-3 block"
-        //       value={ratio}
-        //       placeholder="Kích thước bảng (Ex: 5x5)"
-        //     />
-        //   </div>
-        //   {/* <div className="mt-3 flex justify-between">
-        //     <label htmlFor="">Kích cỡ bảng</label>
-        //     <select
-        //       name=""
-        //       id=""
-        //       value={ratio}
-        //       onChange={(e) => {
-        //         setRatio(e.target.value);
-        //       }}
-        //       className="px-4 "
-        //     >
-        //       {
-
-        //       }
-        //       <option value="16">16</option>
-        //       <option value="32">32</option>
-        //     </select>
-        //   </div> */}
-        //   <button
-        //     className="bg-main-color text-white px-4 py-2 rounded-md block mx-auto my-4"
-        //     onClick={() => {
-        //       handleCreateRoom();
-        //     }}
-        //   >
-        //     Tạo phòng mới +{" "}
-        //   </button>
-        // </div>
         <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md ">
           <IoClose
             className="absolute right-0 top-0 cursor-pointer"
@@ -331,7 +189,6 @@ const Home = ({ socket }) => {
       )}
 
       <div className="bgHome fixed top-0 left-0 right-0 bottom-0"></div>
-      {/* <div className="absolute top-0">Start</div> */}
       <div>
         <div className="relative min-h-32">
           <h1 className="title uppercase text-9xl text-black">
@@ -348,10 +205,8 @@ const Home = ({ socket }) => {
               setName(e.target.value);
             }}
             onFocus={(e) => {
-              console.log("focus in");
             }}
             onBlur={(e) => {
-              console.log("focus out: " + name);
               handleChangeName();
             }}
             value={name}
@@ -373,17 +228,10 @@ const Home = ({ socket }) => {
             <MdMeetingRoom className="text-main-color mr-2" size={24} />
             <p>Danh sách các phòng trực tuyến</p>
           </h2>
-          {/* <RoomComponent
-            name={"Phòng 1"}
-            numberOfPlayer={3}
-            capacity={5}
-            id={"abc"}
-          /> */}
           {listRoom?.length === 0 && (
             <div>Không có phòng nào đang tồn tại!</div>
           )}
           {listRoom?.map((item, index) => {
-            console.log("start: " + item.isStart);
             return !item?.isStart ? (
               <RoomComponent
                 key={index}

@@ -38,11 +38,8 @@ const Room = ({ socket }) => {
       socket.on("getPlayers", (data) => {
         if (data.success) {
           setPlayers(data.mes);
-          // console.log(data.mes)
           data.mes.forEach(element => {
-            console.log(element)
             if(element.token === localStorage.getItem('token')) {
-              console.log(element.ready)
               setIsReady(element.ready)
             }
           });
@@ -88,7 +85,6 @@ const Room = ({ socket }) => {
   const handleJoinGame = () => {
     let temp = 0;
     const timer = setInterval(() => {
-      console.log(countdown);
       setCountdown((prev) => prev - 1);
       temp++;
       if (temp === 5) {
