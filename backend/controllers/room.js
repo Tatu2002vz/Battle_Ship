@@ -2,7 +2,7 @@ const roomRepository = require("../model/room");
 const playerRepository = require("../model/player");
 const startGame = require("../util/startGame");
 const { checkEndGame } = require("../util/endGame");
-const { getTurn } = require("../util/handleTurn");
+const { getTurn, nextTurn } = require("../util/handleTurn");
 const createRoom = async (data) => {
   const Room = await roomRepository();
   const Player = await playerRepository();
@@ -220,8 +220,16 @@ const leaveRoom = async (socket, room, token, io) => {
     }
     if (roomFetch.isStart !== null && roomFetch.isStart) {
       const endGame = await checkEndGame(room);
-      io.to(endGame.winner.socketId).emit("endGame", endGame?.winner);
-      getTurn({ room, io });
+      if (endGame.success)
+        io.to(endGame.winner.socketId).emit("endGame", endGame?.winner);
+      else {
+        const check = await getTurn({ roomId: room, io });
+        console.log('check: ' + check)
+        if (!check) {
+          await nextTurn(room);
+          await getTurn({ roomId: room, io });
+        }
+      }
     }
     if (roomFetch.isStart !== null && !roomFetch.isStart) {
       const players = await Player.search()

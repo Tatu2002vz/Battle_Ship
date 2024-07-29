@@ -15,20 +15,22 @@ const getTurn = async ({ roomId, io }) => {
         .eq(turn)
         .return.first();
       if (!playerTurn) {
-        await nextTurn(roomId);
+        return false;
       }
       // io.to(playerTurn?.socketId).emit("myTurn");
-      console.log("Tới lượt: " + playerTurn.socketId);
-      console.log("Tới lượt: " + playerTurn.name);
       io.in(roomId).emit("notificationTurn", {
         name: playerTurn?.name,
         token: playerTurn?.token,
       });
+      console.log("Tới lượt: " + playerTurn.socketId);
+      console.log("Tới lượt: " + playerTurn.name);
+      return true;
     } else {
       throw new Error(`Không tìm thấy phòng với id: ${roomId}!`);
     }
   } catch (error) {
     console.log("Lỗi khi sắp xếp lượt chơi!" + error.message);
+    return false;
   }
 };
 

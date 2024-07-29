@@ -129,7 +129,11 @@ const socketModule = (server) => {
     socket.on("playing", async (data) => {
       const { roomId } = data;
       await checkEndGame(roomId);
-      await getTurn({ roomId, io });
+      const check = await getTurn({ roomId, io });
+      if(!check) {
+        await nextTurn(roomId);
+        await getTurn({roomId, io})
+      }
       // Lấy các điểm đã tấn công nếu có khi bị mất kết nối
       const rs = await getAllPointBeAttacked(roomId);
       if (rs.success) {
