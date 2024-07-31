@@ -54,7 +54,7 @@ const createPoint = async (data) => {
             await Player.save(playerAttack);
             const check = await checkLost(isExist.playerId); // kiểm tra xem đã bị tấn công hết tất cả các điểm chưa
             let endGame;
-
+            
             if (check) {
               await resetPointAndRoom(isExist.playerId); // nếu đã bị tấn công hết thì thua
               endGame = await checkEndGame(roomId);

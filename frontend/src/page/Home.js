@@ -39,23 +39,24 @@ const Home = ({ socket }) => {
   useEffect(() => {
     // lấy danh sách phòng
     getAllRooms();
-
+    // console.log('socket active: ' + socket.connected)
     if (socket) {
       let token = localStorage.getItem("token");
+      let data = {}
       if (token) {
         socket.on("connect", () => {
-          const data = { token: token, name: name, socketId: socket.id };
+          data = { token: token, name: name, socketId: socket.id };
           socket.emit("visited", data);
+          setTimeout(() => {
+            socket.emit("current", data);
+            socket.on("current", (data) => {
+              if (data?.roomId !== "") {
+                navigate("/room/" + data?.roomId);
+              }
+              setName(data?.name);
+            });
+          }, 500);
         });
-        setTimeout(() => {
-          socket.emit("current");
-          socket.on("current", (data) => {
-            if (data?.roomId !== "") {
-              navigate("/room/" + data?.roomId);
-            }
-            setName(data?.name);
-          });
-        }, 500);
         socket.on("error", (data) => {
           console.log("data error: " + data);
           navigate("/");
@@ -191,10 +192,10 @@ const Home = ({ socket }) => {
       <div className="bgHome fixed top-0 left-0 right-0 bottom-0"></div>
       <div>
         <div className="relative min-h-32">
-          <h1 className="title uppercase text-9xl text-black">
+          <h1 className="title uppercase text-5xl md:text-7xl lg:text-9xl text-black">
             BattleShip War
           </h1>
-          <h1 className="title uppercase text-9xl text-black">
+          <h1 className="title uppercase text-5xl md:text-7xl lg:text-9xl text-black">
             BattleShip War
           </h1>
         </div>

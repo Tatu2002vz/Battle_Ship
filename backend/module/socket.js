@@ -15,6 +15,7 @@ const {
   readyPlayer,
   updatePlayer,
   getCurrent,
+  rejoinRoom
 } = require("../controllers/player");
 const { getTurn, nextTurn } = require("../util/handleTurn");
 const { createPoint, getAllPointBeAttacked } = require("../controllers/point");
@@ -41,14 +42,21 @@ const socketModule = (server) => {
     const token = socket.handshake.auth.token;
     console.log(socket.id);
     console.log(io.sockets.sockets.size);
+    
+    // Join lại room khi bị disconnect
+
+    const rejoin = await rejoinRoom({ socket, token });
+    // if (rejoin.success) {
+    //   socket.emit("reload");
+    // }
     // Tạo hoặc cập nhật user mỗi khi truy cập
     socket.on("visited", async (data) => {
       await createPlayer(data);
     });
     // Lấy thông tin hiện tại của người dùng
-    socket.on("current", async () => {
-      const data = await getCurrent(token);
-      if (data && data.success) socket.emit("current", data.mes);
+    socket.on("current", async (data) => {
+      const dataCurrent = await getCurrent(data);
+      if (dataCurrent && dataCurrent.success) socket.emit("current", dataCurrent.mes);
     });
     socket.on("changeName", async (data) => {
       await updatePlayer({ token, name: data });
@@ -130,9 +138,9 @@ const socketModule = (server) => {
       const { roomId } = data;
       await checkEndGame(roomId);
       const check = await getTurn({ roomId, io });
-      if(!check) {
+      if (!check) {
         await nextTurn(roomId);
-        await getTurn({roomId, io})
+        await getTurn({ roomId, io });
       }
       // Lấy các điểm đã tấn công nếu có khi bị mất kết nối
       const rs = await getAllPointBeAttacked(roomId);
@@ -151,11 +159,11 @@ const socketModule = (server) => {
           const { playerBeAttacked, playerAttack, endGame, lost } = rs.mes;
           if (endGame) {
             // kết thúc game
-            io.to(endGame.winner.socketId).emit("endGame", endGame?.winner);
+            io.in(roomId).emit("endGame", endGame?.winner);
           }
           if (lost) {
             // thua game
-            io.to(playerBeAttacked.socketId).emit("lostGame");
+            io.in(roomId).emit("lostGame", playerBeAttacked);
           }
           const message = `Người chơi ${playerAttack.name} tấn công trúng tàu ${playerBeAttacked.name}!`;
           io.in(roomId).emit("rsKick", {

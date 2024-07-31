@@ -1,20 +1,29 @@
 const playerRepository = require("../model/player");
-const getCurrent = async (token) => {
+const getCurrent = async (data) => {
   try {
+    const { token } = data;
     const Player = await playerRepository();
-    const player = await Player.search().where('token').equals(token).return.first();
-    if(player) {
+    const player = await Player.search()
+      .where("token")
+      .equals(token)
+      .return.first();
+    if (player) {
       return {
         success: true,
-        mes: player
-      }
+        mes: player,
+      };
     } else {
-      throw new Error('Không tìm thấy player với token: ' + token);
+      const newPlayer = await createPlayer(data);
+      console.log('abcd')
+      return {
+        success: true,
+        mes: newPlayer,
+      };
     }
   } catch (error) {
-    console.log('Lỗi khi lấy thông tin người chơi hiện tại!' + error.message)
+    console.log("Lỗi khi lấy thông tin người chơi hiện tại!" + error.message);
   }
-}
+};
 const createPlayer = async (data) => {
   const { name, token, socketId } = data;
   let Player = await playerRepository();
@@ -27,7 +36,7 @@ const createPlayer = async (data) => {
     if (isExist.length > 0) {
       const player = await Player.fetch(isExist[0].entityId);
       player.socketId = socketId;
-      if(name) player.name = name;
+      if (name) player.name = name;
       Player.save(player);
     } else {
       let newPlayer = {
@@ -39,29 +48,32 @@ const createPlayer = async (data) => {
         token,
         beAttacked: 0,
         socketId: socketId ? socketId : "",
-        no: 0
+        no: 0,
       };
       newPlayer = await Player.createAndSave(newPlayer);
       return newPlayer;
     }
   } catch (e) {
-    console.log('Lỗi ở tạo hoặc cập nhật player: ' + e.message);
+    console.log("Lỗi ở tạo hoặc cập nhật player: " + e.message);
   }
 };
-const updatePlayer = async ({token, name}) => {
+const updatePlayer = async ({ token, name }) => {
   try {
     const Player = await playerRepository();
-    const player = await Player.search().where('token').equals(token).return.first();
-    if(player) {
+    const player = await Player.search()
+      .where("token")
+      .equals(token)
+      .return.first();
+    if (player) {
       player.name = name;
       await Player.save(player);
     } else {
-      throw new Error('Không tìm thấy player với token: ' + token);
+      throw new Error("Không tìm thấy player với token: " + token);
     }
   } catch (error) {
     console.log("Lỗi khi cập nhật tên: " + error.message);
   }
-}
+};
 const deletePlayer = async (data) => {
   try {
     let Player = await playerRepository();
@@ -75,7 +87,7 @@ const deletePlayer = async (data) => {
       await Player.remove((await delPlayer).entityId);
     }
   } catch (e) {
-    console.log('Lỗi khi xóa player: ' + e.message);
+    console.log("Lỗi khi xóa player: " + e.message);
   }
 };
 
@@ -95,11 +107,29 @@ const readyPlayer = async (data) => {
   }
 };
 
-
+const rejoinRoom = async ({ socket, token }) => {
+  try {
+    const Player = await playerRepository();
+    const player = await Player.search()
+      .where("token")
+      .equals(token)
+      .return.first();
+    if (player && player.roomId !== "") {
+      socket.join(player.roomId);
+      return { success: true };
+    } else {
+      return { success: false };
+    }
+  } catch (error) {
+    console.log("Lỗi khi vào lại phòng!" + error.message);
+    return { success: false };
+  }
+};
 module.exports = {
   createPlayer,
   deletePlayer,
   readyPlayer,
   updatePlayer,
-  getCurrent
+  getCurrent,
+  rejoinRoom
 };

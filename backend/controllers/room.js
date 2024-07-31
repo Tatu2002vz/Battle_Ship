@@ -137,6 +137,7 @@ const socketGetAllRooms = async () => {
 
 const joinRoom = async (socket, room, token) => {
   try {
+    console.log('join room')
     const Player = await playerRepository();
     const Room = await roomRepository();
     const roomSearch = await Room.fetch(room);
@@ -224,7 +225,7 @@ const leaveRoom = async (socket, room, token, io) => {
         io.to(endGame.winner.socketId).emit("endGame", endGame?.winner);
       else {
         const check = await getTurn({ roomId: room, io });
-        console.log('check: ' + check)
+        console.log("check: " + check);
         if (!check) {
           await nextTurn(room);
           await getTurn({ roomId: room, io });

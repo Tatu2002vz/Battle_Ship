@@ -20,7 +20,7 @@ const Playing = ({ socket }) => {
   const [pointFire, setPointFire] = useState([]); // điểm tấn công trúng và bị cháy
   const [size, setSize] = useState(null);
   const [ratio, setRatio] = useState(0);
-  
+
   const { id } = useParams();
   const getPoint = async () => {
     const points = await apiGetPoint({
@@ -60,7 +60,6 @@ const Playing = ({ socket }) => {
     getRoom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     if (socket) {
-      
       socket.on("connect", () => {
         let socketId = socket.id;
         const data = {
@@ -119,8 +118,11 @@ const Playing = ({ socket }) => {
         // });
         notiEndGame(data);
       });
-      socket.on("lostGame", () => {
-        notiLostGame();
+      socket.on("lostGame", (data) => {
+        console.log("lostGame: " + JSON.stringify(data));
+        if (localStorage.getItem("token") === data.token) {
+          notiLostGame();
+        }
       });
     }
     return () => {
@@ -262,7 +264,7 @@ const Playing = ({ socket }) => {
           Xin hàng (thoát)
         </div>
         <div>
-          <div className="flex gap-6 justify-center p-5">
+          <div className="md:flex gap-6 justify-center p-5 hidden">
             {players?.map((item, index) => {
               return <Player name={item.name} ready={item.ready} key={index} />;
             })}

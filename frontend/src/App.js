@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import publicRoute from "./route";
 import { v4 as uuidv4 } from "uuid";
 
@@ -11,7 +11,7 @@ if (!token) {
   localStorage.setItem("token", randomId);
   token = randomId;
 }
-const socket = io(process.env.REACT_APP_URL_SERVER, {
+const socket = io(process.env.REACT_APP_URL_SERVER_SOCKET, {
   auth: {
     token: token,
   },
@@ -38,7 +38,7 @@ function App() {
             );
           })}
 
-          <Route path="*" element={<Navigate to={""} />} />
+          {/* <Route path="*" element={<Navigate to={""} />} /> */}
         </Routes>
         <ToastContainer />
       </div>
