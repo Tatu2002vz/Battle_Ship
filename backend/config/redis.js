@@ -1,34 +1,31 @@
+// const { Client, Entity, Schema, Repository } = require("redis-om");
+
+// const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+
+//     /* create and open the Redis OM Client */
+// const client = await new Client("redis://103.252.72.210:26379").open(url);
+
 const { createClient } = require("redis");
-let client = null;
+const { Client, Entity, Schema, Repository } = require("redis-om");
+
+// await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
+
 const connectRedis = async () => {
-  client = createClient({ url: process.env.REDIS_URL });
+  const sentinelClient = await createClient({ url: "redis://103.252.72.210:26379" })
+    .on("error", (err) => console.log("Redis Client Error", err))
+    .connect();
 
-  client.on("error", (err) => console.log("Redis Client Error", err));
-
-  await client.connect();
-  console.log("Connected to Redis!");
+  const rs = await sentinelClient.sendCommand([
+    "SENTINEL",
+    "get-master-addr-by-name",
+    "mymaster",
+  ]); // 'OK'
+  // console.log(JSON.stringify(rs[0]));
+  // console.log(JSON.stringify(rs[1]));
+  // const client = await createClient({url: `redis://${rs[0]}:${rs[1]}`})
+  const url = `redis://${rs[0]}:${rs[1]}`
+  const client = await new Client().open(url);
+  return client;
 };
-const getClient = () => {
-  if (client) {
-    return client;
-  } else {
-    console.error("Not connect to Redis!");
-  }
-};
-module.exports = {
-  connectRedis,
-  getClient,
-};
-//------------------
-// // import { Client } from 'redis-om'
-
-// // /* pulls the Redis URL from .env */
-// // const url = process.env.REDIS_URL
-
-// // /* create and open the Redis OM Client */
-// // const client = await new Client().open(url)
-
-// // export default client
-// const { createClient } = require("redis");
-
-// await console.log('a')
+// connectRedis();
+module.exports = connectRedis;

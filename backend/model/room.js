@@ -1,12 +1,14 @@
 const { Client, Entity, Schema, Repository } = require("redis-om");
+const connectRedis = require("../config/redis");
 
 const excFn = async () => {
   let roomRepository;
   try {
-    const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+    // const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
-    /* create and open the Redis OM Client */
-    const client = await new Client().open(url);
+    // /* create and open the Redis OM Client */
+    // const client = await new Client().open(url);
+    const client = await connectRedis()
 
     class Room extends Entity {}
 

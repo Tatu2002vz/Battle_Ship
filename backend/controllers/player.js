@@ -14,7 +14,6 @@ const getCurrent = async (data) => {
       };
     } else {
       const newPlayer = await createPlayer(data);
-      console.log('abcd')
       return {
         success: true,
         mes: newPlayer,

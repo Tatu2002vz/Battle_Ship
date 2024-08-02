@@ -5,7 +5,7 @@ import RoomComponent from "../component/RoomComponent";
 import { useNavigate } from "react-router-dom";
 import { apiGetRooms } from "../api/Room";
 import Swal from "sweetalert2";
-import { useForm,  } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import validateOptions from "../helper/validate";
 // import FormCreate from "./FormCreate";
 const Home = ({ socket }) => {
@@ -42,21 +42,22 @@ const Home = ({ socket }) => {
     // console.log('socket active: ' + socket.connected)
     if (socket) {
       let token = localStorage.getItem("token");
-      let data = {}
+      let data = {};
       if (token) {
         socket.on("connect", () => {
           data = { token: token, name: name, socketId: socket.id };
           socket.emit("visited", data);
-          setTimeout(() => {
-            socket.emit("current", data);
-            socket.on("current", (data) => {
-              if (data?.roomId !== "") {
-                navigate("/room/" + data?.roomId);
-              }
-              setName(data?.name);
-            });
-          }, 500);
         });
+        
+        setTimeout(() => {
+          socket.emit("current", {token: token});
+          socket.on("current", (data) => {
+            if (data?.roomId !== "") {
+              navigate("/room/" + data?.roomId);
+            }
+            setName(data?.name);
+          });
+        }, 100);
         socket.on("error", (data) => {
           console.log("data error: " + data);
           navigate("/");
@@ -118,7 +119,6 @@ const Home = ({ socket }) => {
       }
     });
   };
-
 
   const handleChangeName = () => {
     socket.emit("changeName", name);
@@ -205,8 +205,7 @@ const Home = ({ socket }) => {
             onChange={(e) => {
               setName(e.target.value);
             }}
-            onFocus={(e) => {
-            }}
+            onFocus={(e) => {}}
             onBlur={(e) => {
               handleChangeName();
             }}
