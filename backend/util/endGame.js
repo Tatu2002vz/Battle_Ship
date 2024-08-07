@@ -2,13 +2,14 @@ const roomRepository = require("../model/room");
 const playerRepository = require("../model/player");
 const pointRepository = require("../model/pointAttacked");
 const { resetPointAndRoom } = require("./checkLost");
+const { EntityId } = require("redis-om");
 const checkEndGame = async (roomId) => {
   try {
     const Room = await roomRepository();
     const Player = await playerRepository();
     const Point = await pointRepository();
     const room = await Room.fetch(roomId);
-    if (room && room.entityId && room.name !== null) {
+    if (room && room.name) {
       if (room.isStart) {
         const playerOfRoom = await Player.search()
           .where("roomId")
@@ -23,7 +24,7 @@ const checkEndGame = async (roomId) => {
             .equals(roomId)
             .return.all();
           points.forEach(async (point) => {
-            await Point.remove(point.entityId);
+            await Point.remove(point[EntityId]);
           });
           // Xóa id phòng của player chiến thắng
           playerOfRoom[0].roomId = "";

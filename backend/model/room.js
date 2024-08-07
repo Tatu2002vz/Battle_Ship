@@ -1,18 +1,31 @@
 const { Client, Entity, Schema, Repository } = require("redis-om");
 const connectRedis = require("../config/redis");
+const { createClient } = require("redis");
 
 const excFn = async () => {
   let roomRepository;
   try {
-    // const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+    const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
     // /* create and open the Redis OM Client */
     // const client = await new Client().open(url);
-    const client = await connectRedis()
+    // const client = await connectRedis()
 
-    class Room extends Entity {}
+    let redis = createClient({ url: "redis://103.252.72.185:6380" });
+    redis.on("error", async (err) => {
+      console.log("Redis Client Error", err.message);
+      // setTimeout(async () => {
+      //   redis = createClient({ url: process.env.REDIS_URL });
+      //   await redis.connect();
+      // }, 5000);
+    });
+    redis.on("connect", () => {
+    });
+    await redis.connect();
 
-    const roomSchema = new Schema(Room, {
+    // class Room extends Entity {}
+
+    const roomSchema = new Schema("Room", {
       name: { type: "string" },
       numberOfRoom: { type: "number" },
       capacity: { type: "number" },
@@ -22,7 +35,8 @@ const excFn = async () => {
       turn: { type: "number" },
       ratio: { type: "number" },
     });
-    roomRepository = client.fetchRepository(roomSchema);
+    // roomRepository = redis.fetchRepository(roomSchema);
+    roomRepository = new Repository(roomSchema, redis);
     await roomRepository.createIndex();
     return roomRepository;
   } catch (error) {

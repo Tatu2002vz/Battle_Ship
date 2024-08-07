@@ -8,7 +8,7 @@ const startGame = async (players, roomId) => {
 
 
   const room = await Room.fetch(roomId);
-  if (room && room.entityId) {
+  if (room && room.name) {
     room.isStart = true;
     let ships = randomizeShips(room.ratio, players.length);
     await Room.save(room);

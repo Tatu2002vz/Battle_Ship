@@ -8,6 +8,7 @@ import lostImg from "../assets/img/lost.jpg";
 import LeaderBoard from "../component/LeaderBoard";
 import { apiGetRoom } from "../api/Room";
 import Cell from "../component/Cell";
+import Loading from "../component/Loading";
 const Playing = ({ socket }) => {
   const [matrix, setMatrix] = useState(null);
   // const matrix = useRef(null);
@@ -20,7 +21,7 @@ const Playing = ({ socket }) => {
   const [pointFire, setPointFire] = useState([]); // điểm tấn công trúng và bị cháy
   const [size, setSize] = useState(null);
   const [ratio, setRatio] = useState(0);
-
+  const [loading, setLoading] = useState(false);
   const { id } = useParams();
   const getPoint = async () => {
     const points = await apiGetPoint({
@@ -142,6 +143,17 @@ const Playing = ({ socket }) => {
       matrix[i][j] !== true &&
       !points.find((el) => el.x === i && el.y === j)
     ) {
+      setLoading(true);
+      socket.emit("kick", {
+        x: i,
+        y: j,
+        roomId: id,
+        token: localStorage.getItem("token"),
+      }, (rs) => {
+        if(rs === 'success') {
+          setLoading(false)
+        }
+      });
       setMatrix(() => {
         const newMatrix = matrix;
         newMatrix[i][j] = true;
@@ -149,12 +161,6 @@ const Playing = ({ socket }) => {
       });
       setRender(!render);
       setIsMyTurn(false);
-      socket.emit("kick", {
-        x: i,
-        y: j,
-        roomId: id,
-        token: localStorage.getItem("token"),
-      });
     }
   };
   const hitPoint = (i, j) => {
@@ -254,6 +260,7 @@ const Playing = ({ socket }) => {
   };
   return (
     <div className="bgPlaying">
+      {loading && <Loading/>}
       <div className="flex justify-around py-4">
         <div
           className={`hover:text-red-500 text-white hover:underline cursor-pointer max-w-[300px] min-w-[250px]`}

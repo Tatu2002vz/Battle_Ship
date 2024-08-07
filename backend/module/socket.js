@@ -15,7 +15,7 @@ const {
   readyPlayer,
   updatePlayer,
   getCurrent,
-  rejoinRoom
+  rejoinRoom,
 } = require("../controllers/player");
 const { getTurn, nextTurn } = require("../util/handleTurn");
 const { createPoint, getAllPointBeAttacked } = require("../controllers/point");
@@ -42,7 +42,7 @@ const socketModule = (server) => {
     const token = socket.handshake.auth.token;
     console.log(socket.id);
     console.log(io.sockets.sockets.size);
-    
+
     // Join lại room khi bị disconnect
 
     const rejoin = await rejoinRoom({ socket, token });
@@ -56,7 +56,8 @@ const socketModule = (server) => {
     // Lấy thông tin hiện tại của người dùng
     socket.on("current", async (data) => {
       const dataCurrent = await getCurrent(data);
-      if (dataCurrent && dataCurrent.success) socket.emit("current", dataCurrent.mes);
+      if (dataCurrent && dataCurrent.success)
+        socket.emit("current", dataCurrent.mes);
     });
     socket.on("changeName", async (data) => {
       await updatePlayer({ token, name: data });
@@ -96,6 +97,7 @@ const socketModule = (server) => {
       }
       io.to(roomId).emit("getPlayers", players);
       if (!rsJoinRoom?.success) {
+        console.log(rsJoinRoom?.mes);
         socket.emit("error", rsJoinRoom?.mes);
       }
     });
@@ -150,7 +152,7 @@ const socketModule = (server) => {
     });
 
     // Lắng nghe tấn công
-    socket.on("kick", async (data) => {
+    socket.on("kick", async (data, callback) => {
       const { roomId, x, y, token } = data;
       const rs = await createPoint({ roomId, x, y, attackedId: token });
       // Nếu có kết quả trả về.....
@@ -178,6 +180,7 @@ const socketModule = (server) => {
         } else {
           io.in(roomId).emit("rsKick", { success: false, x, y });
         }
+        callback("success");
       }
       // Lượt tiếp theo
       await nextTurn(roomId);

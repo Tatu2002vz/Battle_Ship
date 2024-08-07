@@ -6,7 +6,7 @@ const getTurn = async ({ roomId, io }) => {
     const Player = await playerRepository();
     const Room = await roomRepository();
     const room = await Room.fetch(roomId);
-    if (room && room.entityId && room.name !== null) {
+    if (room && room.name) {
       const turn = room.turn;
       const playerTurn = await Player.search()
         .where("roomId")
@@ -39,7 +39,7 @@ const nextTurn = async (roomId) => {
     const Room = await roomRepository();
     const Player = await playerRepository();
     const room = await Room.fetch(roomId);
-    if (room && room.entityId && room.name !== null) {
+    if (room && room.name ) {
       let turn = Number(room.turn);
       // room.turn = Number(room.turn) + 1;
       turn += 1;

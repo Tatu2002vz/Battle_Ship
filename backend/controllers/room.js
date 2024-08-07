@@ -3,6 +3,7 @@ const playerRepository = require("../model/player");
 const startGame = require("../util/startGame");
 const { checkEndGame } = require("../util/endGame");
 const { getTurn, nextTurn } = require("../util/handleTurn");
+const { EntityId } = require("redis-om");
 const createRoom = async (data) => {
   const Room = await roomRepository();
   const Player = await playerRepository();
@@ -33,15 +34,15 @@ const createRoom = async (data) => {
       createdAt: Date.now(),
       turn: 0,
     };
-    newRoom = await Room.createAndSave(newRoom);
-    const roomId = newRoom.entityId;
+    newRoom = await Room.save(newRoom);
+    const roomId = newRoom[EntityId];
     const player = await Player.search()
       .where("token")
       .equals(token)
       .return.first();
     player.roomId = roomId;
     await Player.save(player);
-    return { success: true, mes: newRoom };
+    return { success: true, mes: { ...newRoom, entityId: roomId } };
   } catch (e) {
     console.log("Lỗi khi tạo phòng: " + e.message);
     return { success: false, mes: "Tạo phòng thất bại: " + e.message };
@@ -94,19 +95,22 @@ const getAllRooms = async (req, res) => {
     //   // await Room.save(room)
     // });
     const newListRoom = [];
+    console.log("listroom length: " + listRoom.length);
     for (const room of listRoom) {
       const countPerson = await Player.search()
         .where("roomId")
-        .equals(room.entityId)
+        .equals(room[EntityId])
         .return.all();
       // const copy_room = { ...room, numberPerson: countPerson.length };
       // newListRoom.push(copy_room);
       // room.numberPerson = countPerson.length
-      room.numberOfRoom = countPerson.length;
-      if (countPerson.length === 0) {
-        await Room.remove(room.entityId);
+      room.numberOfRoom = countPerson?.length;
+      if (countPerson?.length === 0) {
+        console.log("remove room get all room!" + room[EntityId]);
+        await Room.remove(room[EntityId]);
+        await Room.save(room);
       } else {
-        newListRoom.push(room);
+        newListRoom.push({...room, entityId: room[EntityId]});
       }
       await Room.save(room);
     }
@@ -121,15 +125,27 @@ const socketGetAllRooms = async () => {
     const Room = await roomRepository();
     const Player = await playerRepository();
     const listRoom = await Room.search().return.all();
-    listRoom.forEach(async (room) => {
+    const newListRoom = [];
+    console.log("listroom length: " + listRoom.length);
+    for (const room of listRoom) {
       const countPerson = await Player.search()
         .where("roomId")
-        .equals(room.entityId)
+        .equals(room[EntityId])
         .return.all();
-      room.numberOfRoom = countPerson.length;
-    });
+      // const copy_room = { ...room, numberPerson: countPerson.length };
+      // newListRoom.push(copy_room);
+      // room.numberPerson = countPerson.length
+      room.numberOfRoom = countPerson?.length;
+      if (countPerson?.length === 0) {
+        await Room.remove(room[EntityId]);
+        await Room.save(room);
+      } else {
+        newListRoom.push({...room, entityId: room[EntityId]});
+      }
+      await Room.save(room);
+    }
     //   console.log(listRoom)
-    return { success: true, mes: listRoom };
+    return { success: true, mes: newListRoom };
   } catch (error) {
     console.log("Lỗi khi lấy tất cả phòng fn socket" + error.message);
   }
@@ -137,11 +153,12 @@ const socketGetAllRooms = async () => {
 
 const joinRoom = async (socket, room, token) => {
   try {
-    console.log('join room')
+    console.log("join room");
     const Player = await playerRepository();
     const Room = await roomRepository();
     const roomSearch = await Room.fetch(room);
-    if (roomSearch && roomSearch.entityId && roomSearch.name !== null) {
+    if (roomSearch && roomSearch.name) {
+      // console.log("join room search: " + JSON.stringify(roomSearch));
       if (roomSearch.isStart) {
         const player = await Player.search()
           .where("token")
@@ -169,7 +186,7 @@ const joinRoom = async (socket, room, token) => {
           .return.first();
         if (playerCount < roomSearch.capacity) {
           socket.join(room);
-          if (player && player.entityId) {
+          if (player) {
             player.roomId = room;
             await Player.save(player);
           }
@@ -213,7 +230,7 @@ const leaveRoom = async (socket, room, token, io) => {
       .where("token")
       .equals(token)
       .return.first();
-    if (player && player.entityId) {
+    if (player) {
       player.roomId = "";
       player.ready = false;
       player.point = 0;

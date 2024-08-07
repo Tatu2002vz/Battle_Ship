@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Player from "../component/Player";
 import { useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
+import Loading from "../component/Loading";
 const Room = ({ socket }) => {
   const [isReady, setIsReady] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -9,6 +10,7 @@ const Room = ({ socket }) => {
   const { id } = useParams();
   const [countdown, setCountdown] = useState(5);
   const [showCountdown, setShowCountdown] = useState(false);
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (socket) {
       socket.on("connect", () => {
@@ -95,6 +97,7 @@ const Room = ({ socket }) => {
   };
   return (
     <div className="bgRoom p-5 flex flex-col items-center">
+      {loading && <Loading/>}
       {showCountdown && (
         <div className="fixed z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-8xl text-center">
           Chuẩn bị vào game!

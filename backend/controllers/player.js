@@ -1,4 +1,7 @@
+const { EntityId } = require("redis-om");
 const playerRepository = require("../model/player");
+const { createClient } = require("redis");
+
 const getCurrent = async (data) => {
   try {
     const { token } = data;
@@ -24,22 +27,20 @@ const getCurrent = async (data) => {
   }
 };
 const createPlayer = async (data) => {
-  const { name, token, socketId } = data;
-  let Player = await playerRepository();
-
   try {
+    const { name, token, socketId } = data;
+    let Player = await playerRepository();
     const isExist = await Player.search()
       .where("token")
       .equals(token)
-      .return.all();
-    if (isExist.length > 0) {
-      const player = await Player.fetch(isExist[0].entityId);
-      player.socketId = socketId;
-      if (name) player.name = name;
-      Player.save(player);
+      .return.first();
+    if (isExist) {
+      // const player = await Player.fetch(isExist[0].entityId);
+      isExist.socketId = socketId;
+      if (name) isExist.name = name;
+      await Player.save(isExist);
     } else {
       let newPlayer = {
-        entityId: token,
         ready: false,
         roomId: "",
         point: 0,
@@ -49,7 +50,7 @@ const createPlayer = async (data) => {
         socketId: socketId ? socketId : "",
         no: 0,
       };
-      newPlayer = await Player.createAndSave(newPlayer);
+      newPlayer = await Player.save(newPlayer);
       return newPlayer;
     }
   } catch (e) {
@@ -77,13 +78,13 @@ const deletePlayer = async (data) => {
   try {
     let Player = await playerRepository();
     const { socketId } = data;
-    const delPlayer = Player.search()
+    const delPlayer = await Player.search()
       .where("socketId")
       .equals(socketId)
       .return.first();
 
     if (!delPlayer.ready && !delPlayer.roomId) {
-      await Player.remove((await delPlayer).entityId);
+      await Player.remove(delPlayer[EntityId]);
     }
   } catch (e) {
     console.log("Lỗi khi xóa player: " + e.message);
@@ -130,5 +131,5 @@ module.exports = {
   readyPlayer,
   updatePlayer,
   getCurrent,
-  rejoinRoom
+  rejoinRoom,
 };

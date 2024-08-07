@@ -7,6 +7,7 @@ import { apiGetRooms } from "../api/Room";
 import Swal from "sweetalert2";
 import { useForm } from "react-hook-form";
 import validateOptions from "../helper/validate";
+import Loading from "../component/Loading";
 // import FormCreate from "./FormCreate";
 const Home = ({ socket }) => {
   const {
@@ -19,6 +20,7 @@ const Home = ({ socket }) => {
   const [isCreateRoom, setIsCreateRoom] = useState(false);
 
   const [listRoom, setListRoom] = useState([]);
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate();
 
   // Fetch API get list rooms
@@ -48,9 +50,9 @@ const Home = ({ socket }) => {
           data = { token: token, name: name, socketId: socket.id };
           socket.emit("visited", data);
         });
-        
+
         setTimeout(() => {
-          socket.emit("current", {token: token});
+          socket.emit("current", { token: token });
           socket.on("current", (data) => {
             if (data?.roomId !== "") {
               navigate("/room/" + data?.roomId);
@@ -125,6 +127,7 @@ const Home = ({ socket }) => {
   };
   return (
     <div className="relative">
+      {loading && <Loading/>}
       {isCreateRoom && (
         <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-5 backdrop-blur-lg bg-gray-500/15 z-10 rounded-md ">
           <IoClose

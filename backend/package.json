@@ -19,10 +19,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "ioredis": "^5.4.1",
     "mongoose": "^8.5.1",
     "nodemon": "^3.1.4",
     "redis": "^4.6.15",
-    "redis-om": "^0.2.0",
+    "redis-om": "^0.4.6",
     "socket.io": "^4.7.5"
   },
   "optionalDependencies": {

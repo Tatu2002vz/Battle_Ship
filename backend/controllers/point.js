@@ -33,7 +33,7 @@ const createPoint = async (data) => {
         attackedId: attackedId ? attackedId : "", // có attackedId = bị tấn công
         roomId: roomId,
       };
-      await Point.createAndSave(newPoint);
+      await Point.save(newPoint);
       // trả về tấn công nhưng không trúng ai
       return {
         success: false,
@@ -49,7 +49,7 @@ const createPoint = async (data) => {
             .where("token")
             .equals(attackedId)
             .return.first(); // lấy player để cộng điểm
-          if (playerAttack && playerAttack.entityId) {
+          if (playerAttack) {
             playerAttack.point += 1; // cộng 1 điểm
             await Player.save(playerAttack);
             const check = await checkLost(isExist.playerId); // kiểm tra xem đã bị tấn công hết tất cả các điểm chưa
