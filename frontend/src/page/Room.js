@@ -40,9 +40,9 @@ const Room = ({ socket }) => {
       socket.on("getPlayers", (data) => {
         if (data.success) {
           setPlayers(data.mes);
-          data.mes.forEach(element => {
-            if(element.token === localStorage.getItem('token')) {
-              setIsReady(element.ready)
+          data.mes.forEach((element) => {
+            if (element.token === localStorage.getItem("token")) {
+              setIsReady(element.ready);
             }
           });
         }
@@ -97,7 +97,7 @@ const Room = ({ socket }) => {
   };
   return (
     <div className="bgRoom p-5 flex flex-col items-center">
-      {loading && <Loading/>}
+      {loading && <Loading />}
       {showCountdown && (
         <div className="fixed z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-8xl text-center">
           Chuẩn bị vào game!
@@ -111,7 +111,6 @@ const Room = ({ socket }) => {
         <Player name={"Tạ Văn Tú"} />
         <Player name={"Tạ Văn Tú"} /> */}
         {players.map((item, index) => {
-          
           return <Player name={item.name} ready={item.ready} key={index} />;
         })}
       </div>

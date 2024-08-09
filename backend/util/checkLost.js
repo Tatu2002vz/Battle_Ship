@@ -1,11 +1,11 @@
 const playerRepository = require("../model/player");
 const pointRepository = require("../model/pointAttacked");
-const checkLost = async (playerId) => {
+const checkLost = async (playerId, roomId) => {
   //playerId === token
   const Point = await pointRepository();
   const points = await Point.search()
     .where("playerId")
-    .equals(playerId)
+    .equals(playerId).and("roomId").equals(roomId)
     .return.all();
   const check = points.every((el) => el.isAttacked === true);
   if (check) {

@@ -52,7 +52,7 @@ const createPoint = async (data) => {
           if (playerAttack) {
             playerAttack.point += 1; // cộng 1 điểm
             await Player.save(playerAttack);
-            const check = await checkLost(isExist.playerId); // kiểm tra xem đã bị tấn công hết tất cả các điểm chưa
+            const check = await checkLost(isExist.playerId, roomId); // kiểm tra xem đã bị tấn công hết tất cả các điểm chưa
             let endGame;
             
             if (check) {

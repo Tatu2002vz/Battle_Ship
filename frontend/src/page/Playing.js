@@ -58,6 +58,7 @@ const Playing = ({ socket }) => {
   };
   // Get room and ratio and initialize matrix
   useEffect(() => {
+
     getRoom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     if (socket) {
