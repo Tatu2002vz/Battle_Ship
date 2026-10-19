@@ -1,78 +1,70 @@
 const playerRepository = require("../model/player");
 const roomRepository = require("../model/room");
 
+// Người còn chơi trong phòng = còn roomId trỏ vào phòng
+// (người thua/thoát đã bị reset roomId = "" và no = -1 ở checkLost/leaveRoom).
+const getAlivePlayers = async (roomId) => {
+  const Player = await playerRepository();
+  const players = await Player.search()
+    .where("roomId")
+    .equals(roomId)
+    .return.all();
+  return players.sort((a, b) => a.no - b.no);
+};
+
 const getTurn = async ({ roomId, io }) => {
   try {
-    const Player = await playerRepository();
     const Room = await roomRepository();
     const room = await Room.fetch(roomId);
-    if (room && room.entityId && room.name !== null) {
-      const turn = room.turn;
-      const playerTurn = await Player.search()
-        .where("roomId")
-        .equal(roomId)
-        .and("no")
-        .eq(turn)
-        .return.first();
-      if (!playerTurn) {
-        return false;
-      }
-      // io.to(playerTurn?.socketId).emit("myTurn");
-      io.in(roomId).emit("notificationTurn", {
-        name: playerTurn?.name,
-        token: playerTurn?.token,
-      });
-      console.log("Tới lượt: " + playerTurn.socketId);
-      console.log("Tới lượt: " + playerTurn.name);
-      return true;
-    } else {
-      throw new Error(`Không tìm thấy phòng với id: ${roomId}!`);
+    if (!room || !room.entityId || room.name === null) {
+      return false;
     }
+    const players = await getAlivePlayers(roomId);
+    if (players.length === 0) return false;
+
+    let current = players.find((p) => p.no === Number(room.turn));
+    if (!current) {
+      current = players[0];
+      room.turn = current.no;
+      await Room.save(room);
+    }
+    io.in(roomId).emit("notificationTurn", {
+      name: current.name,
+      token: current.token,
+    });
+    return true;
   } catch (error) {
-    console.log("Lỗi khi sắp xếp lượt chơi!" + error.message);
+    console.log("Lỗi khi sắp xếp lượt chơi! " + error.message);
     return false;
   }
 };
 
+// Chuyển lượt tới người còn sống tiếp theo (vòng tròn).
+// Bản gốc hardcode turn >= 5 và dùng vòng do...while không có điểm dừng
+// nếu không tìm thấy người chơi -> có thể treo server.
 const nextTurn = async (roomId) => {
   try {
     const Room = await roomRepository();
-    const Player = await playerRepository();
     const room = await Room.fetch(roomId);
-    if (room && room.entityId && room.name !== null) {
-      let turn = Number(room.turn);
-      // room.turn = Number(room.turn) + 1;
-      turn += 1;
-      // const playOfRoom = await Player.search()
-      //   .where("roomId")
-      //   .equals(roomId)
-      //   .return.all();
-      let playTurn;
-      do {
-        playTurn = await Player.search()
-          .where("roomId")
-          .equal(roomId)
-          .and("no")
-          .equals(turn)
-          .return.first();
-        if (!playTurn) {
-          room.turn = Number(room.turn) + 1;
-          turn += 1;
-        }
-        if (turn >= 5) {
-          turn = 0;
-        }
-      } while (!playTurn);
-      room.turn = turn;
-      await Room.save(room);
-    } else {
-      throw new Error("Không tìm thấy phòng với id: " + roomId);
+    if (!room || !room.entityId || room.name === null) {
+      return false;
     }
+    const players = await getAlivePlayers(roomId);
+    if (players.length === 0) return false;
+
+    const idx = players.findIndex((p) => p.no === Number(room.turn));
+    const next = players[(idx + 1) % players.length];
+    room.turn = next.no;
+    await Room.save(room);
+    return true;
   } catch (error) {
     console.log("Lỗi khi chuyển lượt: " + error.message);
+    return false;
   }
 };
+
 module.exports = {
   getTurn,
   nextTurn,
+  getAlivePlayers,
 };

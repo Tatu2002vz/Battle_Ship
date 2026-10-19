@@ -1,31 +1,45 @@
-// const { Client, Entity, Schema, Repository } = require("redis-om");
-
-// const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-
-//     /* create and open the Redis OM Client */
-// const client = await new Client("redis://103.252.72.210:26379").open(url);
-
+// Redis client dùng chung cho toàn bộ backend (singleton).
+// Trước đây mỗi lần gọi model lại mở 1 kết nối Redis mới + createIndex() mới,
+// gây chậm và rò kết nối. Nay client chỉ được tạo 1 lần duy nhất.
+//
+// Cấu hình qua .env (xem .env.example):
+// - REDIS_URL: dùng trực tiếp, mặc định redis://127.0.0.1:6379
+// - Hoặc Redis Sentinel: REDIS_SENTINEL_HOST / REDIS_SENTINEL_PORT / REDIS_SENTINEL_MASTER
 const { createClient } = require("redis");
-const { Client, Entity, Schema, Repository } = require("redis-om");
+const { Client } = require("redis-om");
 
-// await client.sendCommand(['HGETALL', 'key']); // ['key1', 'field1', 'key2', 'field2']
+let clientPromise = null;
 
-const connectRedis = async () => {
-  const sentinelClient = await createClient({ url: "redis://103.252.72.210:26379" })
-    .on("error", (err) => console.log("Redis Client Error", err))
-    .connect();
-
-  const rs = await sentinelClient.sendCommand([
-    "SENTINEL",
-    "get-master-addr-by-name",
-    "mymaster",
-  ]); // 'OK'
-  // console.log(JSON.stringify(rs[0]));
-  // console.log(JSON.stringify(rs[1]));
-  // const client = await createClient({url: `redis://${rs[0]}:${rs[1]}`})
-  const url = `redis://${rs[0]}:${rs[1]}`
-  const client = await new Client().open(url);
-  return client;
+const openClient = async () => {
+  if (process.env.REDIS_SENTINEL_HOST) {
+    const sentinel = createClient({
+      url: `redis://${process.env.REDIS_SENTINEL_HOST}:${
+        process.env.REDIS_SENTINEL_PORT || 26379
+      }`,
+    });
+    sentinel.on("error", (err) => console.log("Redis Sentinel Error", err));
+    await sentinel.connect();
+    const master = await sentinel.sendCommand([
+      "SENTINEL",
+      "get-master-addr-by-name",
+      process.env.REDIS_SENTINEL_MASTER || "mymaster",
+    ]);
+    await sentinel.quit().catch(() => {});
+    return new Client().open(`redis://${master[0]}:${master[1]}`);
+  }
+  const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+  return new Client().open(url);
 };
-// connectRedis();
+
+const connectRedis = () => {
+  if (!clientPromise) {
+    clientPromise = openClient().catch((err) => {
+      // Cho phép thử lại ở lần gọi sau nếu kết nối đầu thất bại
+      clientPromise = null;
+      throw err;
+    });
+  }
+  return clientPromise;
+};
+
 module.exports = connectRedis;

@@ -1,9 +1,7 @@
-const { createServer } = require("http");
 const { Server } = require("socket.io");
 const { instrument } = require("@socket.io/admin-ui");
 const {
   createRoom,
-  // deleteRoom,
   getPlayerOfRoom,
   joinRoom,
   leaveRoom,
@@ -15,188 +13,278 @@ const {
   readyPlayer,
   updatePlayer,
   getCurrent,
-  rejoinRoom
+  rejoinRoom,
+  deletePlayer,
 } = require("../controllers/player");
+const { placeShip, randomShip, hasShip } = require("../controllers/ship");
 const { getTurn, nextTurn } = require("../util/handleTurn");
 const { createPoint, getAllPointBeAttacked } = require("../controllers/point");
 const { checkEndGame } = require("../util/endGame");
+
+// CORS dùng chung cấu hình với HTTP (index.js)
+const clientOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",").map((o) => o.trim())
+  : true;
+
 const socketModule = (server) => {
-  // const io = new Server(server, {
-  //   cors: {
-  //     credentials: true,
-  //     origin: "*",
-  //     methods: ["GET", "POST", "PUT", "DELETE"],
-  //   },
-  // });
   const io = new Server(server, {
     cors: {
       credentials: true,
-      origin: "*",
+      origin: clientOrigins,
       methods: ["GET", "POST", "PUT", "DELETE"],
     },
   });
-  instrument(io, {
-    auth: false,
-  });
+
+  // Admin UI của Socket.IO: chỉ bật khi SOCKET_ADMIN_UI=true (mặc định tắt,
+  // bản gốc bật công khai với auth: false)
+  if (process.env.SOCKET_ADMIN_UI === "true") {
+    instrument(io, { auth: false });
+  }
+
   io.on("connection", async (socket) => {
     const token = socket.handshake.auth.token;
-    console.log(socket.id);
-    console.log(io.sockets.sockets.size);
-    
-    // Join lại room khi bị disconnect
 
-    const rejoin = await rejoinRoom({ socket, token });
-    // if (rejoin.success) {
-    //   socket.emit("reload");
-    // }
+    try {
+      // Join lại room khi bị disconnect
+      await rejoinRoom({ socket, token });
+    } catch (error) {
+      console.log("Lỗi khi rejoin: " + error.message);
+    }
+
     // Tạo hoặc cập nhật user mỗi khi truy cập
     socket.on("visited", async (data) => {
-      await createPlayer(data);
+      try {
+        await createPlayer(data);
+      } catch (error) {
+        console.log("Lỗi ở visited: " + error.message);
+      }
     });
+
     // Lấy thông tin hiện tại của người dùng
     socket.on("current", async (data) => {
-      const dataCurrent = await getCurrent(data);
-      if (dataCurrent && dataCurrent.success) socket.emit("current", dataCurrent.mes);
+      try {
+        const dataCurrent = await getCurrent(data);
+        if (dataCurrent && dataCurrent.success)
+          socket.emit("current", dataCurrent.mes);
+      } catch (error) {
+        console.log("Lỗi ở current: " + error.message);
+      }
     });
-    socket.on("changeName", async (data) => {
-      await updatePlayer({ token, name: data });
-    });
-    // Lấy danh sách phòng đang trực tuyến + có người ở trong khi có người đăng nhập
-    // const listRoom = await getAllRooms();
-    // io.emit("getRoom", listRoom);
-    // Tạo phòng
-    socket.on("createRoom", async ({ nameRoom, capacity, token, ratio }) => {
-      const rs = await createRoom({ nameRoom, capacity, token, ratio });
 
-      socket.emit("createRoom", rs);
-      // Trả về danh sách cho all khi tạo xong
-      const listRoom = await socketGetAllRooms();
-      io.emit("getRoom", listRoom);
+    socket.on("changeName", async (data) => {
+      try {
+        await updatePlayer({ token, name: data });
+      } catch (error) {
+        console.log("Lỗi ở changeName: " + error.message);
+      }
     });
-    // Lấy danh sách người chơi trong phòng
+
+    // Tạo phòng
+    socket.on("createRoom", async (data) => {
+      try {
+        const { nameRoom, capacity, ratio } = data || {};
+        const rs = await createRoom({
+          nameRoom,
+          capacity,
+          token: data?.token || token,
+          ratio,
+        });
+        socket.emit("createRoom", rs);
+        const listRoom = await socketGetAllRooms();
+        io.emit("getRoom", listRoom);
+      } catch (error) {
+        console.log("Lỗi ở createRoom: " + error.message);
+      }
+    });
+
+    // Lấy danh sách người chơi trong phòng (chỉ phát trong phòng đó,
+    // bản gốc dùng io.emit phát cho toàn bộ server)
     socket.on("getPlayers", async (data) => {
-      const roomId = data.roomId;
-      const players = await getPlayerOfRoom(roomId);
-      console.log(players);
-      io.emit("getPlayers", players);
+      try {
+        const roomId = data?.roomId;
+        if (!roomId) return;
+        const players = await getPlayerOfRoom(roomId);
+        io.to(roomId).emit("getPlayers", players);
+      } catch (error) {
+        console.log("Lỗi ở getPlayers: " + error.message);
+      }
     });
+
     // Tham gia phòng
     socket.on("joinRoom", async (data, callback) => {
-      // console.log(JSON.stringify(data))
-      // console.log(JSON.parse(data));
-      const roomId = data.roomId;
-      const rsJoinRoom = await joinRoom(socket, roomId, data.token);
-      const players = await getPlayerOfRoom(roomId);
-      if (data.type === "room" && rsJoinRoom?.type === "playing") {
-        console.log("onGame");
-        socket.emit("onGame");
-      }
-      if (callback) {
-        callback("success");
-      }
-      io.to(roomId).emit("getPlayers", players);
-      if (!rsJoinRoom?.success) {
-        socket.emit("error", rsJoinRoom?.mes);
+      try {
+        const roomId = data?.roomId;
+        const rsJoinRoom = await joinRoom(socket, roomId, data?.token || token);
+        const players = await getPlayerOfRoom(roomId);
+        if (data?.type === "room" && rsJoinRoom?.type === "playing") {
+          socket.emit("onGame");
+        }
+        if (callback) {
+          callback("success");
+        }
+        io.to(roomId).emit("getPlayers", players);
+        if (!rsJoinRoom?.success) {
+          socket.emit("error", rsJoinRoom?.mes);
+        }
+      } catch (error) {
+        console.log("Lỗi ở joinRoom: " + error.message);
       }
     });
 
-    // socket.on("update item", async (arg1, arg2, callback) => {
-    //   console.log(arg1); // 1
-    //   console.log(arg2); // { name: "updated" }
-    //   console.log(callback)
-    //   callback({
-    //     status: "ok"
-    //   });
-    // });
+    // Đặt tàu (người chơi tự kéo-thả / click ở frontend)
+    socket.on("placeShip", async (data) => {
+      try {
+        const rs = await placeShip({
+          roomId: data?.roomId,
+          token: data?.token || token,
+          cells: data?.cells,
+        });
+        socket.emit("placeShip", rs);
+        if (rs?.success) {
+          const players = await getPlayerOfRoom(data.roomId);
+          io.to(data.roomId).emit("getPlayers", players);
+        }
+      } catch (error) {
+        console.log("Lỗi ở placeShip: " + error.message);
+      }
+    });
+
+    // Xếp tàu ngẫu nhiên phía server (nút Random)
+    socket.on("randomShip", async (data) => {
+      try {
+        const rs = await randomShip({
+          roomId: data?.roomId,
+          token: data?.token || token,
+        });
+        socket.emit("randomShip", rs);
+        if (rs?.success) {
+          const players = await getPlayerOfRoom(data.roomId);
+          io.to(data.roomId).emit("getPlayers", players);
+        }
+      } catch (error) {
+        console.log("Lỗi ở randomShip: " + error.message);
+      }
+    });
+
     // Thoát phòng
     socket.on("leaveRoom", async (data) => {
-      const { roomId, token } = data;
-      await leaveRoom(socket, roomId, token, io);
-      const players = await getPlayerOfRoom(roomId);
-      io.to(roomId).emit("getPlayers", players);
-    });
-
-    // Sẵn sàng / hủy sẵn sàng
-    socket.on("ready", async (data) => {
-      const { roomId, token, status } = data;
-      await readyPlayer({ token, status });
-      const players = await getPlayerOfRoom(roomId);
-      const checkReady = await checkAllPlayersReady(roomId);
-      if (checkReady?.success) {
-        io.in(roomId).emit("joinGame");
+      try {
+        const { roomId, token: playerToken } = data || {};
+        await leaveRoom(socket, roomId, playerToken || token, io);
+        const players = await getPlayerOfRoom(roomId);
+        io.to(roomId).emit("getPlayers", players);
+      } catch (error) {
+        console.log("Lỗi ở leaveRoom: " + error.message);
       }
-      io.in(roomId).emit("getPlayers", players);
     });
 
-    // socket.on('playing', async(data) => {
-    //   const {roomId, token} = data;
-
-    // })
+    // Sẵn sàng / hủy sẵn sàng (phải đặt tàu xong mới Ready được)
+    socket.on("ready", async (data) => {
+      try {
+        const { roomId, status } = data || {};
+        const playerToken = data?.token || token;
+        if (status) {
+          const placed = await hasShip(roomId, playerToken);
+          if (!placed) {
+            socket.emit("error", "Bạn chưa đặt tàu!");
+            return;
+          }
+        }
+        await readyPlayer({ token: playerToken, status });
+        const players = await getPlayerOfRoom(roomId);
+        const checkReady = await checkAllPlayersReady(roomId);
+        if (checkReady?.success) {
+          io.in(roomId).emit("joinGame");
+        }
+        io.in(roomId).emit("getPlayers", players);
+      } catch (error) {
+        console.log("Lỗi ở ready: " + error.message);
+      }
+    });
 
     // Vào game
     socket.on("playing", async (data) => {
-      const { roomId } = data;
-      await checkEndGame(roomId);
-      const check = await getTurn({ roomId, io });
-      if (!check) {
-        await nextTurn(roomId);
-        await getTurn({ roomId, io });
-      }
-      // Lấy các điểm đã tấn công nếu có khi bị mất kết nối
-      const rs = await getAllPointBeAttacked(roomId);
-      if (rs.success) {
-        socket.emit("pointActtacked", rs.mes);
+      try {
+        const { roomId } = data || {};
+        await checkEndGame(roomId);
+        const check = await getTurn({ roomId, io });
+        if (!check) {
+          await nextTurn(roomId);
+          await getTurn({ roomId, io });
+        }
+        // Lấy các điểm đã tấn công nếu có khi bị mất kết nối
+        const rs = await getAllPointBeAttacked(roomId);
+        if (rs.success) {
+          socket.emit("pointActtacked", rs.mes);
+        }
+      } catch (error) {
+        console.log("Lỗi ở playing: " + error.message);
       }
     });
 
     // Lắng nghe tấn công
     socket.on("kick", async (data) => {
-      const { roomId, x, y, token } = data;
-      const rs = await createPoint({ roomId, x, y, attackedId: token });
-      // Nếu có kết quả trả về.....
-      if (rs) {
-        if (rs.success) {
-          const { playerBeAttacked, playerAttack, endGame, lost } = rs.mes;
-          if (endGame) {
-            // kết thúc game
-            io.in(roomId).emit("endGame", endGame?.winner);
-          }
-          if (lost) {
-            // thua game
-            io.in(roomId).emit("lostGame", playerBeAttacked);
-          }
-          const message = `Người chơi ${playerAttack.name} tấn công trúng tàu ${playerBeAttacked.name}!`;
-          io.in(roomId).emit("rsKick", {
+      try {
+        const { roomId, x, y } = data || {};
+        const rs = await createPoint({
+          roomId,
+          x,
+          y,
+          attackedId: data?.token || token,
+        });
+
+        // Phát bắn không hợp lệ: chỉ báo cho người bắn, không chuyển lượt
+        if (!rs || !rs.ok) {
+          socket.emit("rsKick", {
+            success: false,
+            invalid: true,
             x,
             y,
-            mes: rs.mes,
-            success: true,
-            notification: message,
+            mes: rs?.mes || "Phát bắn không hợp lệ",
           });
-          const players = await getPlayerOfRoom(roomId);
-          io.emit("getPlayers", players);
-        } else {
-          io.in(roomId).emit("rsKick", { success: false, x, y });
+          return;
         }
+
+        const { playerBeAttacked, playerAttack, endGame, lost } = rs.mes;
+        if (endGame) {
+          io.in(roomId).emit("endGame", endGame?.winner);
+        }
+        if (lost) {
+          io.in(roomId).emit("lostGame", playerBeAttacked);
+        }
+        const notification =
+          rs.result === "hit"
+            ? `Người chơi ${playerAttack.name} tấn công trúng tàu ${playerBeAttacked.name}!`
+            : `Người chơi ${playerAttack.name} bắn trượt!`;
+        io.in(roomId).emit("rsKick", {
+          x,
+          y,
+          mes: rs.mes,
+          success: rs.success,
+          result: rs.result,
+          notification,
+        });
+        const players = await getPlayerOfRoom(roomId);
+        io.to(roomId).emit("getPlayers", players);
+
+        // Chỉ chuyển lượt khi phát bắn hợp lệ và game chưa kết thúc
+        if (!endGame) {
+          await nextTurn(roomId);
+          await getTurn({ roomId, io });
+        }
+      } catch (error) {
+        console.log("Lỗi ở kick: " + error.message);
       }
-      // Lượt tiếp theo
-      await nextTurn(roomId);
-      await getTurn({ roomId, io });
     });
-    // Lắng nghe sự kiện đầu hàng / thoát trận khi đang chơi ! == leaveRoom
-    // socket.on("surrender", async () => {
-    //   const { roomId, token } = data;
-    //   await leaveRoom(socket, roomId, token);
-    //   const players = await getPlayerOfRoom(roomId);
-    //   io.to(roomId).emit("getPlayers", players); // thông báo cho những người chơi khác là đã thoát phòng
-    // });
 
     socket.on("disconnect", async () => {
-      console.log("ngắt kết nối: " + socket.id);
-      // Xóa user khi ngắt truy cập nếu chưa vào phòng
-      // await deleteRoom({ socketId: socket.id });
-      // await deletePlayer({ socketId: socket.id });
-      console.log(io.sockets.sockets.size);
+      try {
+        // Xóa user khi ngắt kết nối nếu chưa vào phòng nào.
+        // Người đang trong phòng thì giữ lại để reconnect (rejoinRoom).
+        await deletePlayer({ socketId: socket.id });
+      } catch (error) {
+        console.log("Lỗi ở disconnect: " + error.message);
+      }
     });
   });
 };

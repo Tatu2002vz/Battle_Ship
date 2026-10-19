@@ -1,4 +1,5 @@
 const playerRepository = require("../model/player");
+
 const getCurrent = async (data) => {
   try {
     const { token } = data;
@@ -23,9 +24,10 @@ const getCurrent = async (data) => {
     console.log("Lỗi khi lấy thông tin người chơi hiện tại!" + error.message);
   }
 };
+
 const createPlayer = async (data) => {
   const { name, token, socketId } = data;
-  let Player = await playerRepository();
+  const Player = await playerRepository();
 
   try {
     const isExist = await Player.search()
@@ -36,7 +38,8 @@ const createPlayer = async (data) => {
       const player = await Player.fetch(isExist[0].entityId);
       player.socketId = socketId;
       if (name) player.name = name;
-      Player.save(player);
+      await Player.save(player);
+      return player;
     } else {
       let newPlayer = {
         entityId: token,
@@ -56,6 +59,7 @@ const createPlayer = async (data) => {
     console.log("Lỗi ở tạo hoặc cập nhật player: " + e.message);
   }
 };
+
 const updatePlayer = async ({ token, name }) => {
   try {
     const Player = await playerRepository();
@@ -73,17 +77,19 @@ const updatePlayer = async ({ token, name }) => {
     console.log("Lỗi khi cập nhật tên: " + error.message);
   }
 };
+
+// Chỉ xóa người chơi chưa vào phòng nào (dùng khi disconnect).
+// Bản gốc không await kết quả search nên điều kiện xóa không bao giờ đúng.
 const deletePlayer = async (data) => {
   try {
-    let Player = await playerRepository();
+    const Player = await playerRepository();
     const { socketId } = data;
-    const delPlayer = Player.search()
+    const player = await Player.search()
       .where("socketId")
       .equals(socketId)
       .return.first();
-
-    if (!delPlayer.ready && !delPlayer.roomId) {
-      await Player.remove((await delPlayer).entityId);
+    if (player && !player.roomId) {
+      await Player.remove(player.entityId);
     }
   } catch (e) {
     console.log("Lỗi khi xóa player: " + e.message);
@@ -92,17 +98,21 @@ const deletePlayer = async (data) => {
 
 const readyPlayer = async (data) => {
   try {
-    let Player = await playerRepository();
+    const Player = await playerRepository();
     const { token } = data;
     const player = await Player.search()
       .where("token")
       .equals(token)
       .return.first();
+    if (!player) {
+      return { success: false, message: "Không tìm thấy người chơi" };
+    }
     player.ready = data.status;
     await Player.save(player);
     return { success: true, message: "Player ready!" };
   } catch (error) {
     console.log("Lỗi khi sẵn sàng: " + error.message);
+    return { success: false, message: "Lỗi khi sẵn sàng" };
   }
 };
 
@@ -124,11 +134,12 @@ const rejoinRoom = async ({ socket, token }) => {
     return { success: false };
   }
 };
+
 module.exports = {
   createPlayer,
   deletePlayer,
   readyPlayer,
   updatePlayer,
   getCurrent,
-  rejoinRoom
+  rejoinRoom,
 };

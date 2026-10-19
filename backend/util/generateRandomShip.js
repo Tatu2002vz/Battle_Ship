@@ -1,76 +1,48 @@
-function randomizeShips(boardSize, numberOfShips) {
-  // Khởi tạo một mảng rỗng để lưu trữ các tọa độ của các tàu
-  let ships = [];
+// Sinh vị trí ngẫu nhiên hợp lệ cho 1 tàu 3 ô (chỉ ngang/dọc).
+// Dùng cho nút "Random" phía server (event randomShip) để client
+// không phải đoán vị trí tàu của người khác.
+//
+// occupiedKeys: Set các key "x,y" đã có tàu trong phòng.
+// Trả về [[x,y],[x,y],[x,y]] hoặc null nếu bàn không còn chỗ.
+const { cellKey, SHIP_LENGTH } = require("./validateShip");
 
-  // Hàm kiểm tra xem một tàu có trùng với các tàu hiện có không
-  function isOverlap(ship) {
-    for (let existingShip of ships) {
-      for (let [x, y] of ship) {
-        if (existingShip.some(([ex, ey]) => ex === x && ey === y)) {
-          return true;
-        }
-      }
-    }
-    return false;
+const buildCells = (x, y, horizontal) => {
+  const cells = [];
+  for (let i = 0; i < SHIP_LENGTH; i++) {
+    cells.push(horizontal ? [x + i, y] : [x, y + i]);
+  }
+  return cells;
+};
+
+const isFree = (cells, size, occupiedKeys) =>
+  cells.every(
+    ([x, y]) =>
+      x < size && y < size && !(occupiedKeys && occupiedKeys.has(cellKey(x, y)))
+  );
+
+const generateShipPlacement = (ratio, occupiedKeys) => {
+  const size = Number(ratio);
+  if (!Number.isInteger(size) || size < SHIP_LENGTH) return null;
+
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const horizontal = Math.random() < 0.5;
+    const x = Math.floor(Math.random() * size);
+    const y = Math.floor(Math.random() * size);
+    const cells = buildCells(x, y, horizontal);
+    if (isFree(cells, size, occupiedKeys)) return cells;
   }
 
-  // Hàm tạo một tàu ngẫu nhiên với chiều dài và chiều rộng cho trước
-  function generateShip(length, width) {
-    let ship = [];
-
-    let direction = Math.random();
-    // Tạo tọa độ cho tàu theo chiều dọc
-    if (direction < 0.33) {
-      let startX = Math.floor(Math.random() * (boardSize - width + 1));
-      let startY = Math.floor(Math.random() * (boardSize - length + 1));
-
-      for (let i = 0; i < length; i++) {
-        ship.push([startX, startY + i]);
+  // Dự phòng: quét toàn bộ bàn để tìm vị trí còn trống
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      for (const horizontal of [true, false]) {
+        const cells = buildCells(x, y, horizontal);
+        if (isFree(cells, size, occupiedKeys)) return cells;
       }
-    }
-    // Tạo tọa độ cho tàu theo chiều ngang
-    else if (direction < 0.67) {
-      let startX = Math.floor(Math.random() * (boardSize - length + 1));
-      let startY = Math.floor(Math.random() * (boardSize - width + 1));
-
-      for (let i = 0; i < length; i++) {
-        ship.push([startX + i, startY]);
-      }
-    } else {
-      let startX;
-      let startY;
-      if (length > width) {
-        startX = Math.floor(Math.random() * (boardSize - length + 1));
-        startY = Math.floor(Math.random() * (boardSize - length + 1));
-      } else {
-        startX = Math.floor(Math.random() * (boardSize - width + 1));
-        startY = Math.floor(Math.random() * (boardSize - width + 1));
-      }
-
-      for (let i = 0; i < length; i++) {
-        ship.push([startX + i, startY + i]);
-      }
-    }
-
-    return ship;
-  }
-
-  // Tạo các tàu ngẫu nhiên
-  while (ships.length < numberOfShips) {
-    let ship = generateShip(3, 1);
-    if (!isOverlap(ship)) {
-      ships.push(ship);
     }
   }
+  return null;
+};
 
-  return ships;
-}
-// Sử dụng hàm randomizeShips để lấy danh sách tọa độ của 5 tàu
-// let ships = randomizeShips(32, 5);
-
-// // In ra danh sách tọa độ của từng tàu
-// for (let i = 0; i < ships.length; i++) {
-//   console.log(`Tàu ${i + 1}:`, ships[i]);
-// }
-
-module.exports = randomizeShips;
+module.exports = generateShipPlacement;
+module.exports.generateShipPlacement = generateShipPlacement;

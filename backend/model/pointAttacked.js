@@ -1,43 +1,34 @@
-const { Client, Entity, Schema, Repository } = require("redis-om");
+const { Entity, Schema } = require("redis-om");
 const connectRedis = require("../config/redis");
 
-const excFn = async () => {
-  let pointAttackedReposistory;
-  try {
-  //   const url = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+// Repository được tạo 1 lần duy nhất và dùng lại (singleton).
+let repositoryPromise = null;
 
-  // /* create and open the Redis OM Client */
-  // const client = await new Client().open(url);
-  const client = await connectRedis()
+const getPointRepository = () => {
+  if (!repositoryPromise) {
+    repositoryPromise = (async () => {
+      const client = await connectRedis();
 
-  class Point extends Entity {}
+      class Point extends Entity {}
 
-  const pointAttacked = new Schema(Point, {
-    x: { type: "number" },
-    y: { type: "number" },
-    isAttacked: { type: "boolean" },
-    roomId: { type: "string" },
-    playerId: { type: "string" }, // id người có tọa độ tại điểm này
-    attackedId: { type: "string" }, // id người đã tấn công điểm này
-  });
-  pointAttackedReposistory = client.fetchRepository(pointAttacked);
-  await pointAttackedReposistory.createIndex();  //only once time
-  // console.log(JSON.stringify(pointAttackedReposistory))
-  // console.log('rs: ' + JSON.stringify(rs))
-  return pointAttackedReposistory;
-  } catch (error) {
-    console.log('Lỗi ở create point (model): ' + error.message)
-  } finally {
-    return pointAttackedReposistory;
+      const pointSchema = new Schema(Point, {
+        x: { type: "number" },
+        y: { type: "number" },
+        isAttacked: { type: "boolean" },
+        roomId: { type: "string" },
+        playerId: { type: "string" }, // token của người có tàu tại điểm này ("" = ô trống)
+        attackedId: { type: "string" }, // token của người đã bắn điểm này ("" = chưa ai bắn)
+      });
+
+      const repository = client.fetchRepository(pointSchema);
+      await repository.createIndex();
+      return repository;
+    })().catch((err) => {
+      repositoryPromise = null;
+      throw err;
+    });
   }
+  return repositoryPromise;
 };
-// const createIndexPoint = async () => {
-//   try {
-//     const pointAttackedReposistory = await excFn();
-//     await pointAttackedReposistory.createIndex();
-//   } catch (error) {
-//     console.log("Lỗi khi create Index Point: " + error.message);
-//   }
-// };
-// createIndexPoint();
-module.exports = excFn;
+
+module.exports = getPointRepository;
